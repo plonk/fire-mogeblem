@@ -54,6 +54,9 @@
 (defconstant +fort-b+      201)
 (defconstant +castle-b+    226)
 (defconstant +player-b+     39)
+(defconstant +p-move-b+    141)
+(defconstant +e-move-b+    160)
+(defconstant +atk-b+       202)
 
 (defparameter +white/blue+ nil)
 (defparameter +black/red+ nil)
@@ -67,15 +70,20 @@
 (defparameter +black/fort-b+ nil)
 (defparameter +black/castle-b+ nil)
 (defparameter +black/player-b+ nil)
+(defparameter +black/p-move-b+ nil)
+(defparameter +black/e-move-b+ nil)
+(defparameter +black/atk-b+    nil)
 
+(defenum:defenum phase-num
+    (+select_unit+ +select_move+ +select_attack+ +select_max+))
 
-
-
+(defenum:defenum atk-type
+                 (+atk_normal+ +atk_counter+ +atk_re+))
 ;;地形データ
 (defstruct celldesc
   (name  nil)
   (aa    nil)
-  (defence 0)
+  (def     0)
   (heal  nil))
 
 ;;武器データ
@@ -98,7 +106,7 @@
 (defstruct unit
   (name nil) (job 0) (hp 0) (maxhp 0) (str 0) (skill 0)
   (w_lv 0) (agi 0) (luck 0) (def 0) (move 0) (weapon 0)
-  (x 0) (y 0) (unit-num 0) (type 0))
+  (x 0) (y 0) (unit-num 0) (team 0))
 
 
 
@@ -181,16 +189,16 @@
 ;;地形データ配列
 (defparameter *celldescs*
   (make-array +cell_max+ :initial-contents
-	      (list (make-celldesc :name "海"   :aa "〜" :defence 30)
-		    (make-celldesc :name "草原" :aa "．" :defence 5)
-		    (make-celldesc :name "林"   :aa "林" :defence 15)
-		    (make-celldesc :name "山"   :aa "山" :defence 25)
-		    (make-celldesc :name "高山" :aa "山" :defence 0)
-		    (make-celldesc :name "町"   :aa "町" :defence 0)
-		    (make-celldesc :name "砦"   :aa "砦" :defence 20 :heal t)
-		    (make-celldesc :name "城"   :aa "城" :defence 30 :heal t))))
+	      (list (make-celldesc :name "海"   :aa "〜" :def 30)
+		    (make-celldesc :name "草原" :aa "．" :def 5)
+		    (make-celldesc :name "林"   :aa "林" :def 15)
+		    (make-celldesc :name "山"   :aa "山" :def 25)
+		    (make-celldesc :name "高山" :aa "山" :def 0)
+		    (make-celldesc :name "町"   :aa "町" :def 0)
+		    (make-celldesc :name "砦"   :aa "砦" :def 20 :heal t)
+		    (make-celldesc :name "城"   :aa "城" :def 30 :heal t))))
 
-(defenum:defenum u-type
+(defenum:defenum team
     (+ally+ +enemy+ +type_max+))
 
 (defparameter *units-data*
