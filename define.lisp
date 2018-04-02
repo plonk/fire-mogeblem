@@ -106,7 +106,7 @@
 (defstruct unit
   (name nil) (job 0) (hp 0) (maxhp 0) (str 0) (skill 0)
   (w_lv 0) (agi 0) (luck 0) (def 0) (move 0) (weapon 0)
-  (x 0) (y 0) (unit-num 0) (team 0))
+  (x 0) (y 0) (unit-num 0) (team 0) (alive? t) (act? nil))
 
 
 
@@ -202,6 +202,7 @@
     (+ally+ +enemy+ +type_max+))
 
 (defparameter *units-data*
+  ;;   name job HP str skill w_lv agi luck def move weapon
   `#(#("もげぞう"   ,+job_lord+     18 5  3  5  7  7  7  7 ,+ally+ ,+w_rapier+)
      #("ジェイガン" ,+job_paradin+  20 7 10 10  8  1  9 10 ,+ally+ ,+w_iron_sword+)
      #("カイン"     ,+job_s_knight+ 18 7  5  5  6  3  7  9 ,+ally+ ,+w_spear+)
@@ -211,7 +212,7 @@
      #("シーダ"     ,+job_p_knight+ 16 3  6  7 12  9  7  8 ,+ally+ ,+w_iron_sword+)
      #("ガザック"   ,+job_pirate+   24 7  3  7  8  0  6  6 ,+enemy+ ,+w_steal_ax+)
      #("ガルダ兵"   ,+job_hunter+   18 6  1  5  5  0  3  6 ,+enemy+ ,+w_bow+)
-     #("ガルダ兵"   ,+job_thief+    16 3  1  2  9  0  2  7 ,+enemy+ ,+w_iron_sword+)
+     #("ガルダ兵"   ,+job_thief+    16 33  1  2  9  0  2  7 ,+enemy+ ,+w_iron_sword+)
      #("ガルダ兵"   ,+job_pirate+   18 5  1  5  6  0  4  6 ,+enemy+ ,+w_ax+)))
 
 
