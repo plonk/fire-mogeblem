@@ -79,6 +79,8 @@
 
 (defenum:defenum atk-type
                  (+atk_normal+ +atk_counter+ +atk_re+))
+(defenum:defenum game-turn
+                 (+p_turn+ +e_turn+ +turn_max+))
 ;;地形データ
 (defstruct celldesc
   (name  nil)
@@ -253,3 +255,12 @@
 		    (make-unit :name "ガルダ兵" :job +job_pirate+ :hp 18 :maxhp 18
 			       :str 5 :skill 1 :w_lv 5 :agi 6 :luck 0 :def 4
 			       :move 6 :weapon +w_ax+))))
+
+
+(defparameter *dist-i*
+  (make-array 4 :initial-contents
+              '((0 1)
+                (0 -1)
+                (1 0)
+                (-1 0))))
+                

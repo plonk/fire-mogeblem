@@ -2,8 +2,8 @@
 
 (ql:quickload '(cl-charms bordeaux-threads alexandria defenum))
 
-(setf sb-ext:*invoke-debugger-hook*  
-      (lambda (condition hook) 
+(setf sb-ext:*invoke-debugger-hook*
+      (lambda (condition hook)
         (declare (ignore condition hook))
         ;; デバッガが呼ばれたら、単にプログラムを終了する
         ;; recklessly-p に t を指定して、後始末(標準出力ストリームのフラッシュ等)が行われないようにする
@@ -127,15 +127,15 @@
 
 ;;地形データ表示
 (defun show-cell-data (cell window)
-  (charms:write-string-at-point 
+  (charms:write-string-at-point
    window
    (format nil "  地形  : ~a" (celldesc-name (aref *celldescs* cell)))
    1 1)
-  (charms:write-string-at-point 
+  (charms:write-string-at-point
    window
    (format nil "防御効果: ~2d%" (celldesc-def (aref *celldescs* cell)))
    1 2)
-  (charms:write-string-at-point 
+  (charms:write-string-at-point
    window
    (format nil "回復効果: ~a" (if (celldesc-heal (aref *celldescs* cell))
 				 "あり" "なし"))
@@ -211,7 +211,7 @@
     ((and can-move (= can-move +enemy+))
      +black/e-move-b+)
     (t
-     (cond 
+     (cond
        ((= cell +cell_sea+)     +white/blue+)
        ((= cell +cell_plane+)   +black/green+)
        ((= cell +cell_forest+)  +dark_green/green+)
@@ -246,12 +246,32 @@
 			 (show-cell-data cell window2)
 			 (if (and unit (unit-alive? unit))
 			     (show-unit-data unit unit-win))))
-	      
+
 	      (with-colors (window color)
-		(charms:write-string-at-point 
-		 window
-		 aa
-		 (+ (* x 2) 1) (1+ y)))))))
+		(charms:write-string-at-point
+		 window aa (+ (* x 2) 1) (1+ y)))))))
+
+;;敵移動中描画
+;;地形とユニット描画
+(defun show-map (cells units window)
+  (loop for y from 0 below *map-h* do
+    (loop for x from 0 below *map-w* do
+ 	    (let ((cell (aref cells y x)) (unit (get-unit x y units))
+            (color +dark_green/green+) (aa nil))
+ 	      (if (and unit (unit-alive? unit))
+      		  (let* ((job-num (unit-job unit))
+             			 (job (aref *jobdescs* job-num))
+             			 (job-aa (jobdesc-aa job)))
+      		    (if (= (unit-team unit) +ally+)
+           			(setf color +black/player-b+)
+           			(setf color +black/red+))
+      		    (setf aa job-aa))
+      		  (progn
+     		     (setf color (get-cell-color cell nil))
+             (setf aa (celldesc-aa (aref *celldescs* cell)))))
+ 	      (with-colors (window color)
+        		(charms:write-string-at-point
+        		 window aa (+ (* x 2) 1) (1+ y)))))))
 
 ;;ユニットの移動可能範囲取得
 (defun can-move-area (x y move movecost cells move-area team)
@@ -309,22 +329,22 @@
          (y1 (unit-y unit)))
     (can-atk-area? x1 y1 x1 y1 r-min r-max atk-area r-max)))
 
-                
-          
+
+
 
 ;;攻撃可能範囲に敵がいるか判定
-(defun can-atk? (units atk-area)
+(defun can-atk? (atk-unit units atk-area)
   (loop for u across units
         do (if (and (aref atk-area (unit-y u) (unit-x u))
-                    (unit-alive? u))
+                    (unit-alive? u) (/= (unit-team atk-unit) (unit-team u)))
                (return-from can-atk? t))))
-                        
+
 ;;ユニット選択フェイズでzキー押したとき
-(defun select-unit-p (units cells move-area cursor) 
+(defun select-unit-p (units cells move-area cursor)
   (init-move-area move-area)
   (let ((unit (get-unit (cursor-x cursor) (cursor-y cursor) units))
         (s-mode nil) (select-unit nil))
-    (if (and unit (unit-alive? unit))
+    (if (and unit (unit-alive? unit) (null (unit-act? unit)))
         (let ((team (unit-team unit)))
           (setf select-unit unit)
           (if (= team +ally+)
@@ -346,7 +366,7 @@
                 (unit-y select-unit) (cursor-y cursor))
           (init-move-area move-area)
           (get-atk-area select-unit atk-area)
-          (let ((atk? (can-atk? units atk-area)))
+          (let ((atk? (can-atk? select-unit units atk-area)))
             (if atk?
                 (progn
                   (get-atk-area select-unit atk-area)
@@ -392,7 +412,7 @@
 
 ;;HPが０になったときのメッセージ
 (defun dead-msg (dead-unit alive-unit atk-win)
-  (charms:write-string-at-point 
+  (charms:write-string-at-point
     atk-win
     (if (= (unit-team dead-unit) +ally+)
         (format nil "~a は ~a に倒された。" (unit-name dead-unit) (unit-name alive-unit))
@@ -415,7 +435,7 @@
          (atk-hit (+ a-w-hit a-skill)) (def-dodge (+ cell-def (- d-agi d-w-wei)))
          (hit? (- atk-hit def-dodge)) (atk-msg (get-atk-msg atk-type)))
     (charms:clear-window atk-win)
-    (charms:write-string-at-point 
+    (charms:write-string-at-point
       atk-win (format nil "~aの~a" (unit-name atk-unit) atk-msg) 1 1)
     (draw-window-box atk-win)
     (charms:get-char atk-win)
@@ -432,16 +452,16 @@
      (attack! atk-unit def-unit cells +atk_re+ atk-win))
    ;;死亡判定
    (when (= atk-type +atk_normal+)
-     (cond 
+     (cond
        ((>= 0 (unit-hp def-unit))
         (setf (unit-alive? def-unit) nil)
         (dead-msg def-unit atk-unit atk-win))
        ((>= 0 (unit-hp atk-unit))
         (setf (unit-alive? atk-unit) nil)
         (dead-msg atk-unit def-unit atk-win))))
-     
+
    (charms:refresh-window atk-win)))
-             
+
 
 ;;攻撃先選択フェイズでzキー押したとき
 (defun select-atk-p (atk-unit units cells atk-area s-mode cursor atk-win)
@@ -453,7 +473,93 @@
                      atk-unit nil)
                (init-move-area atk-area)))
     (values atk-unit s-mode)))
-  
+
+
+;;全員行動済みかチェック
+(defun check-turn-end (units team)
+  (loop for u across units
+        do (if (and (= team (unit-team u))
+                    (null (unit-act? u)))
+               (return-from check-turn-end t))))
+
+;;行動済み初期化
+(defun init-act (units team)
+  (loop for u across units
+        when (= team (unit-team u))
+        do
+        (setf (unit-act? u) nil)))
+
+;;一番近いキャラ
+;;
+(defun near-chara (unit units)
+  (first
+    (sort (remove-if (lambda (u) (= (unit-team u) (unit-team unit))) (coerce units 'list))
+    #'<
+    :key (lambda (u)
+           (m-dist (unit-x unit) (unit-y unit) (unit-x u) (unit-y u))))))
+
+;;TODOユニットにかぶらないようにする
+;; また来ます goodbye!
+;;てきとうむーぶ
+;;x y 一歩前の位置　x1 y1が現在の位置 d-x d-yが一歩先候補位置
+;; 一歩前と一歩先が同じにならないようにしてる
+; (defparameter *dist-i*
+;   (make-array 4 :initial-contents
+;               '((0 1)
+;                 (0 -1)
+;                 (1 0)
+;                 (-1 0))))
+(defun tekito-move (x y unit units target move-area movecost move cells window)
+  (let* ((x1 (unit-x unit)) (y1 (unit-y unit))
+         (x2 (unit-x target)) (y2 (unit-y target))
+         (canmove-l nil) ;;移動先候補リスト
+         (dist (m-dist x1 y1 x2 y2))) ;;ターゲットとの距離
+    (when (and (> move 0) (> dist 1))
+      (loop for i from 0 to 3
+            do (let* ((diff (aref *dist-i* i))
+                      (d-x (+ x1 (nth 0 diff)))
+                      (d-y (+ y1 (nth 1 diff))))
+                 (when (and (>= (1- *map-w*) d-x 0)
+                            (>= (1- *map-h*) d-y 0))
+                   (let* ((cell (aref cells d-y d-x))
+                         (cost (aref movecost cell))
+                         (unit2 (get-unit d-x d-y units))
+                         (dist2 (m-dist d-x d-y x2 y2)))
+                     (when (and (aref move-area d-y d-x) ;; A* わからん！
+                                (not (and (= x d-x) (= y d-y)))
+                                (null unit2) (>= cost 0) (> move cost))
+                       (push (list (cons d-x d-y) (- dist dist2) cost) canmove-l))))))
+      (when canmove-l
+        (let* ((dir (car (sort canmove-l #'> :key #'cadr)))
+              (cost (caddr dir)))
+          (setf (unit-x unit) (caar dir)
+                (unit-y unit) (cdar dir))
+          ;;敵が一歩動いたら画面描画
+          (charms:clear-window window)
+          (show-map cells units window)
+          (charms:refresh-window window)
+          (sleep 0.2)
+          (tekito-move x1 y1 unit units target move-area movecost (- move cost) cells window))))))
+
+;;敵の移動
+(defun enemy-move (unit units cells move-area window)
+  (init-move-area move-area)
+  (get-move-area (unit-x unit) (unit-y unit) unit cells move-area)
+  (let* ((target (near-chara unit units))
+         (move (unit-move unit))
+         (job (aref *jobdescs* (unit-job unit)))
+         (movecost (jobdesc-movecost job)))
+    (tekito-move 0 0 unit units target move-area movecost move cells window)))
+
+;;敵の行動
+(defun enemy-act (units cells move-area atk-area window)
+  (loop for u across units
+        when (and (= (unit-team u) +enemy+) (null (unit-act? u)))
+        do (enemy-move u units cells move-area window)
+        (setf (unit-act? u) t)))
+
+
+
 (defun hello-world ()
   (setf *random-state* (make-random-state t))
   (charms:with-curses ()
@@ -462,7 +568,7 @@
     (charms:enable-raw-input)
     (start-color)
     (init-color)
-    (let ((cells nil) (units nil) (s-mode +select_unit+)
+    (let ((cells nil) (units nil) (s-mode +select_unit+) (turn +p_turn+)
 	  (cursor (make-cursor :x 0 :y 0))
 	  (select-unit nil)
 	  (move-area (make-array (list *map-h* *map-w*) :initial-element nil))
@@ -477,7 +583,7 @@
           with atk-win = (charms:make-window 36 8 0 (+ 2 *map-h*))
 	  with window2 = (charms:make-window 18 5 35 (+ 2 *map-h*))
 	  do (progn
-	       
+
 	       (charms:clear-window window)
 	       (charms:clear-window window2)
 	       (charms:clear-window unit-win)
@@ -494,54 +600,75 @@
 	       (draw-window-box window)
 	       (draw-window-box window2)
 	       (draw-window-box unit-win)
-	       
+
 	       (charms:write-string-at-point
 		window
-		(format nil "x:~d y:~D" (cursor-x cursor) (cursor-y cursor)) 28 0)
+		;;(format nil "x:~d y:~D" (cursor-x cursor) (cursor-y cursor)) 28 0)
+		(format nil "turn:~d" turn) 28 0)
 	       ;;(charms:write-string-at-point window "マップ" 28 0)
 	       (charms:write-string-at-point window2 "地形データ" 3 0)
 	       (charms:write-string-at-point unit-win "ユニットデータ" 10 0)
-               
+
 	       (charms:refresh-window window)
 	       (charms:refresh-window window2)
 	       (charms:refresh-window unit-win)
 
-               (let ((c (charms:get-char window)))
-		 (cond
-		   ((eql c #\q)
-		    (return-from hello-world))
-		   ((eql c #\x)
-		    (cond
-                      ((= s-mode +select_move+)
-			(init-move-area move-area)
-                        (setf s-mode +select_unit+))
-                      ((= s-mode +select_attack+)
-                       (init-move-area atk-area)
-                       (setf s-mode +select_unit+))))
-		   ((eql c #\z)
-		    (cond
-		      ((= s-mode +select_unit+)
-                       (setf (values select-unit s-mode)
-                             (select-unit-p units cells move-area cursor)))
-		      ((= s-mode +select_move+)
-                       (setf (values select-unit s-mode)
-                             (select-move-p select-unit units move-area atk-area s-mode cursor)))
-                      ((= s-mode +select_attack+)
-                       (setf (values select-unit s-mode)
-                             (select-atk-p select-unit units cells atk-area s-mode cursor atk-win)))))
-		   ((eql c (code-char charms/ll:key_up))
-		    (cursor-move cursor 0 -1 window))
-		   ((eql c (code-char charms/ll:key_down))
-		    (cursor-move cursor 0 1 window))
-		   ((eql c (code-char charms/ll:key_right))
-		    (cursor-move cursor 1 0 window))
-		   ((eql c (code-char charms/ll:key_left))
-		    (cursor-move cursor -1 0 window))))
+               (when (= turn +p_turn+)
+                 (let ((c (charms:get-char window)))
+                   (cond
+                     ((eql c #\r)
+                      (setf turn +e_turn+))
+                     ((eql c #\q)
+                      (return-from hello-world))
+                     ((eql c #\x)
+                      (cond
+                        ((= s-mode +select_unit+)
+                         (init-move-area move-area))
+                        ((= s-mode +select_move+)
+                         (init-move-area move-area)
+                         (setf s-mode +select_unit+
+                               select-unit nil))
+                        ((= s-mode +select_attack+)
+                         (init-move-area atk-area)
+                         (setf s-mode +select_unit+
+                               (unit-act? select-unit) t
+                               select-unit nil))))
+                     ((eql c #\z)
+                      (cond
+                        ((= s-mode +select_unit+)
+                         (setf (values select-unit s-mode)
+                               (select-unit-p units cells move-area cursor)))
+                        ((= s-mode +select_move+)
+                         (setf (values select-unit s-mode)
+                               (select-move-p select-unit units move-area atk-area s-mode cursor)))
+                        ((= s-mode +select_attack+)
+                         (setf (values select-unit s-mode)
+                               (select-atk-p select-unit units cells atk-area s-mode cursor atk-win)))))
+                     ((eql c (code-char charms/ll:key_up))
+                      (cursor-move cursor 0 -1 window))
+                     ((eql c (code-char charms/ll:key_down))
+                      (cursor-move cursor 0 1 window))
+                     ((eql c (code-char charms/ll:key_right))
+                      (cursor-move cursor 1 0 window))
+                     ((eql c (code-char charms/ll:key_left))
+                      (cursor-move cursor -1 0 window)))))
+
+               (when (= turn +e_turn+)
+                 (enemy-act units cells move-area atk-area window))
+               ;;ターンチェンジチェック
+               (cond
+                 ((and (= turn +p_turn+)
+                        (null (check-turn-end units +ally+)))
+                  (init-act units +ally+)
+                   (setf turn (- 1 turn)))
+                 ((and (= turn +e_turn+)
+                       (null (check-turn-end units +enemy+)))
+                  (init-act units +enemy+)
+                  (setf turn (- 1 turn))))
+
                (charms:refresh-window window)
 	       (charms:refresh-window window2)
 	       (charms:refresh-window unit-win)
                ;;(charms:refresh-window atk-win)
 
 	       (sleep 0.01))))))
-
-			
