@@ -153,12 +153,13 @@ CL-USER 10 > (minimum '((a 1) (b -1) (c -2)) #'< #'second)
 (defun start-color ()
   (when (eql (charms/ll:has-colors) charms/ll:false)
     (error "Your terminal does not support color."))
-  (when (eql (charms/ll:can-change-color) charms/ll:false)
-    (error "Your terminal does not support color."))
   (let ((ret-code (charms/ll:start-color)))
     (if (= ret-code 0)
 	t
 	(error "start-color error ~s." ret-code)))
+  (unless (= 256 charms/ll:*COLORS*)
+    (when (eql (charms/ll:can-change-color) charms/ll:false)
+      (error "Your terminal does not support color.")))
   (charms/ll:use-default-colors))
 
 ;;カラーペアを作る
@@ -181,8 +182,46 @@ CL-USER 10 > (minimum '((a 1) (b -1) (c -2)) #'< #'second)
         ,@body
         (charms/ll:wattroff ,winptr ,color-pair)))))
 
-;;色作成
-(defun init-color ()
+
+(defun lookup-color-value (index)
+  (cond
+   ((<= 16 index 231)
+    (let ((offset (- index 16)))
+      (multiple-value-bind (red remainder) (truncate offset 36)
+          (multiple-value-bind (green blue) (truncate remainder 6)
+              (mapcar (lambda (v) (* 200 v)) (list red green blue))))))
+   ((<= 232 index 255)
+    (let* ((offset (- index 232))
+           (v (truncate (* offset 1000) 23)))
+      (list v v v)))))
+
+;; 
+(defparameter *next-color* 16)
+
+(defun allocate-color (index)
+  (if (= 256 charms/ll:*COLORS*)
+      index
+    (let ((this-color *next-color*))
+      (incf *next-color*)
+      (destructuring-bind (r g b) (lookup-color-value index)
+        (charms/ll:init-color this-color r g b))
+      this-color)))
+
+(defun init-colors ()
+  (setf +dark_green+  (allocate-color  22))
+  (setf +low-yama-f+  (allocate-color 214))
+  (setf +low-yama-b+  (allocate-color 166))
+  (setf +high-yama-f+ (allocate-color 248))
+  (setf +high-yama-b+ (allocate-color 244))
+  (setf +town-b+      (allocate-color  51))
+  (setf +fort-b+      (allocate-color 201))
+  (setf +castle-b+    (allocate-color 226))
+  (setf +player-b+    (allocate-color  39))
+  (setf +p-move-b+    (allocate-color 141))
+  (setf +e-move-b+    (allocate-color 160))
+  (setf +atk-b+       (allocate-color 202)))
+
+(defun init-color-pairs ()
   (define-color-pair (+white/blue+ 1) +white+ +blue+)
   (define-color-pair (+black/red+ 2) +black+ +red+)
   (define-color-pair (+black/white+ 3) +black+ +white+)
@@ -200,6 +239,11 @@ CL-USER 10 > (minimum '((a 1) (b -1) (c -2)) #'< #'second)
   (define-color-pair (+black/atk-b+    15) +black+ +atk-b+)
   (define-color-pair (+black/yellow+   16) +black+ +yellow+)
   (define-color-pair (+white/black+    17) +white+ +black+))
+
+;;色作成
+(defun init-color ()
+  (init-colors)
+  (init-color-pairs))
 
 ;;疑似カーソル移動
 (defun cursor-move (game x y window)
