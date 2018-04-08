@@ -13,6 +13,82 @@
 
 (load "define.lisp")
 
+;;-------------A-star--------------------------------------------------------------------
+(defstruct node
+  (pos nil)
+  (stable 0)
+  (id 0)
+  (g 0)
+  (h 0)
+  (f 0)
+  (parent nil))
+
+#|
+CL-USER 10 > (minimum '((a 1) (b -1) (c -2)) #'< #'second)
+(C -2)
+|#
+(defun minimum (list predicate key)
+              (when list
+                (let* ((m0 (first list))
+                       (m1 (funcall key m0)))
+                  (mapc (lambda (e0 &aux (e1 (funcall key e0)))
+                          (when (funcall predicate e1 m1)
+                            (psetf m0 e0 m1 e1)))
+                        list)
+                  m0)))
+
+;;マンハッタン距離
+(defun manhatan (pos goal)
+  (+ (abs (- (car pos) (car goal))) (abs (- (cadr pos) (cadr goal)))))
+;;ノードから道順をとり出す
+(defun node-pick-pos (end pos-l)
+  (if (null (node-parent end))
+      pos-l
+      (node-pick-pos (node-parent end) (cons (node-pos end) pos-l))))
+
+(defun astar (start goal cells movecost)
+  (let ((open (list (make-node :pos start :g 0 :h (manhatan start goal)
+			                         :f (manhatan start goal))))
+        (close nil))
+    (loop for i from 0 do
+      (if (null open)
+	        (return (print "hoge")))
+      (let ((n (minimum open #'< #'(lambda (x) (node-f x)))))
+	      (setf open (remove n open :test #'equalp))
+	      (push n close)
+	      (if (equal (node-pos n) goal)
+	          (return (node-pick-pos n '())))
+	      (setf (node-g n) (- (node-f n) (node-h n)))
+	      (loop for v in '((1 0) (0 1) (-1 0) (0 -1)) do
+	        (let* ((next (mapcar #'+ (node-pos n) v)))
+	          (if (and (>= (1- *map-w*) (car next) 0)
+			               (>= (1- *map-h*) (cadr next) 0))
+		            (let ((m (find next open :test #'equal :key #'(lambda (x) (node-pos x))))
+                      (dist (aref movecost (aref cells (cadr next) (car next)))))
+                  (when (>= dist 0)
+                    (if m
+              		      (if (> (node-f m) (+ (node-g n) (node-h m) dist))
+              			        (setf (node-f m) (+ (node-g n) (node-h m) dist)
+              				            (node-parent m) n))
+              		      (progn
+              			      (setf m (find next close :test #'equal :key #'(lambda (x) (node-pos x))))
+                    			(if m
+                    			    (if (> (node-f m) (+ (node-g n) (node-h m) dist))
+                          				(progn
+                          				  (setf (node-f m) (+ (node-g n) (node-h m) dist)
+                          					(node-parent m) n)
+                          				  (setf close (remove m close :test #'equalp))
+                          				  (push m open)))
+                    			    (progn
+                    			      (setf m (make-node))
+                    			      (setf (node-pos m) next)
+                    			      (setf (node-g m) dist)
+                    			      (setf (node-h m) (manhatan next goal))
+                    			      (setf (node-f m) (+ (node-g n) (node-h m) (node-g m)))
+                    			      (setf (node-parent m) n)
+                    			      (push m open))))))))))))))
+;;--------------------------------------------------------------------------------
+
 (defmethod unit-jobdesc ((u unit))
   (aref *jobdescs* (unit-job u)))
 
@@ -21,15 +97,12 @@
 
 ;;ユニットのデータ作成
 (defun make-unit-data (unit-num x y)
-  (let* ((data (aref *units-data* unit-num))
-         (name (aref data 0)) (job (aref data 1)) (hp (aref data 2))
-         (str (aref data 3)) (skill (aref data 4))
-         (w_lv (aref data 5)) (agi (aref data 6)) (luck (aref data 7))
-         (def (aref data 8)) (move (aref data 9))
-         (team (aref data 10)) (weapon (aref data 11)))
-    (make-unit :name name :job job :hp hp :maxhp hp :str str :skill skill
-         :w_lv w_lv :agi agi :luck luck :def def :move move :weapon weapon
-         :x x :y y :unit-num unit-num :team team)))
+  (let ((data (aref *units-data* unit-num)))
+    (apply #'make-unit
+      `(,@(mapcan #'list
+            '(:name :job :hp :str :skill :w_lv :agi :luck :def :move :team :weapon :rank)
+            (loop for n below 13 collect (aref data n)))
+        :unit-num ,unit-num :x ,x :y ,y))))
 
 ;;地形データと全ユニットデータ作成
 (defun make-cells-and-units (map map-no-chara)
@@ -472,10 +545,10 @@
 (defun select-atk-p (atk-unit units cells atk-area s-mode cursor atk-win)
   (let ((def-unit (get-unit (cursor-x cursor) (cursor-y cursor) units)))
     (when (and def-unit (aref atk-area (cursor-y cursor) (cursor-x cursor))
-             (/= (unit-team atk-unit) (unit-team def-unit)))
+               (/= (unit-team atk-unit) (unit-team def-unit)))
       (attack! atk-unit def-unit cells +atk_normal+ atk-win)
       (setf s-mode +select_unit+
-            (unit-act? atk-unit) t ;;動いた
+            (unit-act? atk-unit) t
             atk-unit nil)
       (init-move-area atk-area))
     (values atk-unit s-mode)))
@@ -494,8 +567,7 @@
         do
         (setf (unit-act? u) nil)))
 
-;;一番近いキャラ
-;;
+;;unitに一番近いキャラ
 (defun near-chara (unit units)
   (first
     (sort (remove-if (lambda (u) (or (null (unit-alive? u))
@@ -529,7 +601,7 @@
                         (dist2 (m-dist d-x d-y x2 y2)))
                    (when (and (aref move-area d-y d-x)
                               (not (and (= x d-x) (= y d-y)))
-                              (and unit2 (> (- move cost) 1)) ;;てすと
+                              (and (null unit2));; (> (- move cost) 1)) ;;てすと
                               (>= cost 0) (> move cost))
                      (push (list (cons d-x d-y) (- dist dist2) cost) canmove-l))))))
     canmove-l))
@@ -537,11 +609,11 @@
 ;;てきとうむーぶ
 ;;x y 一歩前の位置　x1 y1が現在の位置 d-x d-yが一歩先候補位置
 ;; 一歩前と一歩先が同じにならないようにしてる
-(defun tekito-move (x y unit units target r-min move-area movecost move cells window)
+(defun tekito-move (x y unit units target r-max move-area movecost move cells window)
   (let* ((x1 (unit-x unit)) (y1 (unit-y unit))
          (x2 (unit-x target)) (y2 (unit-y target))
          (dist (m-dist x1 y1 x2 y2))) ;;ターゲットとの距離
-    (when (and (> move 0) (> dist r-min)) ;;最小射程まで近づく
+    (when (and (> move 0) (> dist r-max)) ;;最小射程まで近づく
       (let ((canmove-l (search-1move x y x1 y1 x2 y2 dist units cells move move-area movecost))) ;;移動先候補リスト)
         (when canmove-l
           (let* ((dir (car (sort canmove-l #'> :key #'cadr)))
@@ -550,7 +622,7 @@
                   (unit-y unit) (cdar dir))
             ;;敵が一歩動いたら画面描画
             (show-enemy-move units cells window)
-            (tekito-move x1 y1 unit units target r-min move-area movecost (- move cost) cells window)))))))
+            (tekito-move x1 y1 unit units target r-max move-area movecost (- move cost) cells window)))))))
 
 ;;指定した地形の(x y)座標を返す
 (defun get-cell-pos (cell cells)
@@ -564,7 +636,7 @@
   (let* ((x1 (unit-x unit)) (y1 (unit-y unit))
          (x2 (car castle-pos)) (y2 (cadr castle-pos))
          (dist (m-dist x1 y1 x2 y2)))
-    (when (> move 0)
+    (when (and (> move 0) (not (and (= x1 x2) (= y1 y2))))
       (let ((canmove-l (search-1move 0 0 x1 y1 x2 y2 dist units cells move move-area movecost))) ;;移動先候補リスト)
         (when canmove-l
           (let* ((dir (car (sort canmove-l #'> :key #'cadr)))
@@ -574,6 +646,7 @@
             ;;敵が一歩動いたら画面描画
             (show-enemy-move units cells window)
             (to-castle unit units castle-pos move-area movecost (- move cost) cells window)))))))
+
 ;;ボスは城へ移動
 (defun move-to-castle (unit units cells move movecost move-area window)
   (let ((castle-pos (get-cell-pos +cell_castle+ cells)))
@@ -581,15 +654,44 @@
                     (= (unit-y unit) (cadr castle-pos))))
       (to-castle unit units castle-pos move-area movecost move cells window))))
 
+;;ユニットがいないかつ移動可能範囲いないの道順
+(defun can-paths (paths units move-area)
+  (let ((new-paths nil))
+    (loop for path in paths do
+      (when (and (aref move-area (cadr path) (car path))
+                 (null (get-unit (car path) (cadr path) units)))
+        (push path new-paths))
+      (when (null (aref move-area (cadr path) (car path)))
+        (return)))
+    (reverse new-paths)))
+
+;;a-star
+(defun astar-move (unit target cells units r-max movecost move-area window)
+  (let* ((start (list (unit-x unit) (unit-y unit)))
+         (goal  (list (unit-x target) (unit-y target)))
+         (paths (astar start goal cells movecost))
+         (sin-paths (can-paths paths units move-area)))
+    (loop for path in sin-paths do
+      (if (aref move-area (cadr path) (car path))
+          (progn
+            (setf (unit-x unit) (car path)
+                  (unit-y unit) (cadr path))
+            ;;敵が一歩動いたら画面描画
+            (show-enemy-move units cells window)
+            (when (>= r-max (unit-dist unit target))
+              (return)))
+          (return)))))
+
 ;;敵の移動
-(defun enemy-move (unit target r-min units cells move-area window)
+(defun enemy-move (unit target r-max units cells move-area window)
   (init-move-area move-area)
   (get-move-area (unit-x unit) (unit-y unit) unit cells move-area)
   (let* ((move (unit-move unit))
          (movecost (jobdesc-movecost (unit-jobdesc unit))))
-    (if (= (unit-team unit) +boss+)
+    (if (= (unit-rank unit) +boss+)
         (move-to-castle unit units cells move movecost move-area window)
-        (tekito-move 0 0 unit units target r-min move-area movecost move cells window))))
+        (astar-move unit target cells units r-max movecost move-area window))))
+        ;;(tekito-move 0 0 unit units target r-max move-area movecost move cells window))))
 
 ;;敵の攻撃
 (defun enemy-attack (atk-unit def-unit cells atk-win)
@@ -611,7 +713,7 @@
           (if (>= r-max dist r-min) ;;攻撃範囲に相手がいる
               (enemy-attack u target cells atk-win)
               (progn ;;移動後に攻撃範囲に相手がいたら攻撃
-                (enemy-move u target r-min units cells move-area window)
+                (enemy-move u target r-max units cells move-area window)
                 (when (>= r-max (unit-dist u target) r-min)
                   (enemy-attack u target cells atk-win)))))))
 

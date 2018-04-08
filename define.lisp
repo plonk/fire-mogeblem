@@ -78,9 +78,13 @@
     (+select_unit+ +select_move+ +select_attack+ +select_max+))
 
 (defenum:defenum atk-type
-                 (+atk_normal+ +atk_counter+ +atk_re+))
+  (+atk_normal+ +atk_counter+ +atk_re+))
+
 (defenum:defenum game-turn
-                 (+p_turn+ +e_turn+ +turn_max+))
+  (+p_turn+ +e_turn+ +turn_max+))
+
+(defenum:defenum unit-rank
+  (+common+ +leader+ +boss+))
 ;;地形データ
 (defstruct celldesc
   (name  nil)
@@ -108,7 +112,7 @@
 (defstruct unit
   (name nil) (job 0) (hp 0) (maxhp 0) (str 0) (skill 0)
   (w_lv 0) (agi 0) (luck 0) (def 0) (move 0) (weapon 0)
-  (x 0) (y 0) (unit-num 0) (team 0) (alive? t) (act? nil))
+  (x 0) (y 0) (unit-num 0) (team 0) (alive? t) (act? nil) (rank 0))
 
 
 
@@ -201,21 +205,21 @@
           (make-celldesc :name "城"   :aa "城" :def 30 :heal t))))
 
 (defenum:defenum team
-    (+ally+ +enemy+ +boss+ +type_max+))
+    (+ally+ +enemy+ +type_max+))
 
 (defparameter *units-data*
-  ;;   name job HP str skill w_lv agi luck def move weapon
-  `#(#("もげぞう"   ,+job_lord+     18 5  3  5  7  7  7  7 ,+ally+ ,+w_rapier+)
-     #("ジェイガン"  ,+job_paradin+  20 7 10 10  8  1  9 10 ,+ally+ ,+w_iron_sword+)
-     #("カイン"     ,+job_s_knight+ 18 7  5  5  6  3  7  9 ,+ally+ ,+w_spear+)
-     #("アベル"     ,+job_s_knight+ 18 6  7  6  7  2  7  9 ,+ally+ ,+w_hand_spear+)
-     #("ドーガ"     ,+job_a_knight+ 18 7  3  4  3  1 11  5 ,+ally+ ,+w_iron_sword+)
-     #("ゴードン"    ,+job_archer+   16 5  1  5  4  4  6  5 ,+ally+ ,+w_cross_bow+)
-     #("シーダ"     ,+job_p_knight+ 16 3  6  7 12  9  7  8 ,+ally+ ,+w_iron_sword+)
-     #("ガザック"    ,+job_pirate+   24 7  3  7  8  0  6  6 ,+boss+ ,+w_steal_ax+)
-     #("ガルダ兵"   ,+job_hunter+   18 6  1  5  5  0  3  6 ,+enemy+ ,+w_bow+)
-     #("ガルダ兵"   ,+job_thief+    16 3  1  2  9  0  2  7 ,+enemy+ ,+w_iron_sword+)
-     #("ガルダ兵"   ,+job_pirate+   18 5  1  5  6  0  4  6 ,+enemy+ ,+w_ax+)))
+  ;;   name job HP str skill w_lv agi luck def move weapon rank
+  `#(#("もげぞう"   ,+job_lord+     18 5  3  5  7  7  7  7 ,+ally+ ,+w_rapier+ ,+leader+)
+     #("ジェイガン"  ,+job_paradin+  20 7 10 10  8  1  9 10 ,+ally+ ,+w_iron_sword+ ,+common+)
+     #("カイン"     ,+job_s_knight+ 18 7  5  5  6  3  7  9 ,+ally+ ,+w_spear+ ,+common+)
+     #("アベル"     ,+job_s_knight+ 18 6  7  6  7  2  7  9 ,+ally+ ,+w_hand_spear+ ,+common+)
+     #("ドーガ"     ,+job_a_knight+ 18 7  3  4  3  1 11  5 ,+ally+ ,+w_iron_sword+ ,+common+)
+     #("ゴードン"    ,+job_archer+   16 5  1  5  4  4  6  5 ,+ally+ ,+w_cross_bow+ ,+common+)
+     #("シーダ"     ,+job_p_knight+ 16 3  6  7 12  9  7  8 ,+ally+ ,+w_iron_sword+ ,+common+)
+     #("ガザック"    ,+job_pirate+   24 7  3  7  8  0  6  6 ,+enemy+ ,+w_steal_ax+ ,+boss+)
+     #("ガルダ兵"   ,+job_hunter+   18 6  1  5  5  0  3  6 ,+enemy+ ,+w_bow+ ,+common+)
+     #("ガルダ兵"   ,+job_thief+    16 3  1  2  9  0  2  7 ,+enemy+ ,+w_iron_sword+ ,+common+)
+     #("ガルダ兵"   ,+job_pirate+   18 5  1  5  6  0  4  6 ,+enemy+ ,+w_ax+ ,+common+)))
 
 
 
