@@ -1,8 +1,7 @@
 (defparameter *map-w* 30)
 (defparameter *map-h* 13)
-
-(defparameter *map1*
-  "0000000000000000000000000000000000kkk000000000000000000200000001h12400000000000055e1252100001111144000000611111111f15110011171k4440000111112111111111001k11124444441k11111000bag11100111kk124442111211100001611110011511i133211111100001cd11110001111113111k1k122000111111100000111k116111112200021j11210000000111111112110000001121110000000015500001100000000000220000000000000000000000000000000000")
+(defparameter *game-over?* nil)
+(defparameter *game-play* t)
 
 (defparameter *map1-chara*
   (make-array (* *map-h* *map-w*) :initial-contents
@@ -208,22 +207,19 @@
     (+ally+ +enemy+ +type_max+))
 
 (defparameter *units-data*
-  ;;   name job HP str skill w_lv agi luck def move weapon rank
-  `#(#("もげぞう"   ,+job_lord+     18 5  3  5  7  7  7  7 ,+ally+ ,+w_rapier+ ,+leader+)
-     #("ジェイガン"  ,+job_paradin+  20 7 10 10  8  1  9 10 ,+ally+ ,+w_iron_sword+ ,+common+)
-     #("カイン"     ,+job_s_knight+ 18 7  5  5  6  3  7  9 ,+ally+ ,+w_spear+ ,+common+)
-     #("アベル"     ,+job_s_knight+ 18 6  7  6  7  2  7  9 ,+ally+ ,+w_hand_spear+ ,+common+)
-     #("ドーガ"     ,+job_a_knight+ 18 7  3  4  3  1 11  5 ,+ally+ ,+w_iron_sword+ ,+common+)
-     #("ゴードン"    ,+job_archer+   16 5  1  5  4  4  6  5 ,+ally+ ,+w_cross_bow+ ,+common+)
-     #("シーダ"     ,+job_p_knight+ 16 3  6  7 12  9  7  8 ,+ally+ ,+w_iron_sword+ ,+common+)
-     #("ガザック"    ,+job_pirate+   24 7  3  7  8  0  6  6 ,+enemy+ ,+w_steal_ax+ ,+boss+)
-     #("ガルダ兵"   ,+job_hunter+   18 6  1  5  5  0  3  6 ,+enemy+ ,+w_bow+ ,+common+)
-     #("ガルダ兵"   ,+job_thief+    16 3  1  2  9  0  2  7 ,+enemy+ ,+w_iron_sword+ ,+common+)
-     #("ガルダ兵"   ,+job_pirate+   18 5  1  5  6  0  4  6 ,+enemy+ ,+w_ax+ ,+common+)))
-
-
-
-
+  ;;       name job hp maxhp str skill w_lv agi luck def move weapon rank
+  `((A . ("もげぞう"   ,+job_lord+     1 1 5  3  5  7  7  7  7 ,+ally+ ,+w_rapier+ ,+leader+))
+    (B . ("ジェイガン"  ,+job_paradin+  20 20 7 10 10  8  1  9 10 ,+ally+ ,+w_iron_sword+ ,+common+))
+    (C . ("カイン"     ,+job_s_knight+ 18 18 7  5  5  6  3  7  9 ,+ally+ ,+w_spear+ ,+common+))
+    (D . ("アベル"     ,+job_s_knight+ 18 18 6  7  6  7  2  7  9 ,+ally+ ,+w_hand_spear+ ,+common+))
+    (E . ("ドーガ"     ,+job_a_knight+ 18 18 7  3  4  3  1 11  5 ,+ally+ ,+w_iron_sword+ ,+common+))
+    (F . ("ゴードン"    ,+job_archer+   16 16 5  1  5  4  4  6  5 ,+ally+ ,+w_cross_bow+ ,+common+))
+    (G . ("シーダ"     ,+job_p_knight+ 16 16 3  6  7 12  9  7  8 ,+ally+ ,+w_iron_sword+ ,+common+))
+    (H . ("ガザック"    ,+job_pirate+   24 24 7  3  7  8  0  6  6 ,+enemy+ ,+w_steal_ax+ ,+boss+))
+    (I . ("ガルダ兵"   ,+job_hunter+   18 18 6  1  5  5  0  3  6 ,+enemy+ ,+w_bow+ ,+common+))
+    (J . ("ガルダ兵"   ,+job_thief+    16 16 3  1  2  9  0  2  7 ,+enemy+ ,+w_iron_sword+ ,+common+))
+    (K . ("ガルダ兵"   ,+job_pirate+   18 18 5  1  5  6  0  4  6 ,+enemy+ ,+w_ax+ ,+common+))))
+#|
 (defparameter *units*
   (make-array 11 :initial-contents
         (list (make-unit :name "もげぞう" :job +job_lord+ :hp 18 :maxhp 18
@@ -260,10 +256,20 @@
                      :str 5 :skill 1 :w_lv 5 :agi 6 :luck 0 :def 4
                      :move 6 :weapon +w_ax+))))
 
+|#
+;;debug
+(defparameter *units* nil)
+(defparameter *cells* nil)
+;;(setf (values *cells* *units*)
+;;      (make-cells-and-units *map1-chara* *map1-no-chara*))
 
-(defparameter *dist-i*
-  (make-array 4 :initial-contents
-              '((0 1)
-                (0 -1)
-                (1 0)
-                (-1 0))))
+(defstruct game
+  (cursor_x 0)
+  (cursor_y 0)
+  (cells nil)
+  (units nil)
+  (select_unit nil)
+  (turn 0)
+  (move_area nil)
+  (atk_area nil)
+  (s_phase 0))
