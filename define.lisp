@@ -2,6 +2,19 @@
 (defparameter *map-h* 13)
 (defparameter *game-over?* nil)
 (defparameter *game-play* t)
+(defparameter *game-opening* t)
+(defparameter *game-clear* nil)
+
+(defstruct game
+  (cursor_x 0)
+  (cursor_y 0)
+  (cells nil)
+  (units nil)
+  (select_unit nil)
+  (turn 0)
+  (move_area nil)
+  (atk_area nil)
+  (s_phase 0))
 
 (defparameter *map1-chara*
   (make-array (* *map-h* *map-w*) :initial-contents
@@ -79,7 +92,7 @@
 (defenum:defenum atk-type
   (+atk_normal+ +atk_counter+ +atk_re+))
 
-(defenum:defenum game-turn
+(defenum:defenum turn-num
   (+p_turn+ +e_turn+ +turn_max+))
 
 (defenum:defenum unit-rank
@@ -208,7 +221,7 @@
 
 (defparameter *units-data*
   ;;       name job hp maxhp str skill w_lv agi luck def move weapon rank
-  `((A . ("もげぞう"   ,+job_lord+     1 1 5  3  5  7  7  7  7 ,+ally+ ,+w_rapier+ ,+leader+))
+  `((A . ("もげぞう"   ,+job_lord+     18 18 5  3  5  7  7  7  7 ,+ally+ ,+w_rapier+ ,+leader+))
     (B . ("ジェイガン"  ,+job_paradin+  20 20 7 10 10  8  1  9 10 ,+ally+ ,+w_iron_sword+ ,+common+))
     (C . ("カイン"     ,+job_s_knight+ 18 18 7  5  5  6  3  7  9 ,+ally+ ,+w_spear+ ,+common+))
     (D . ("アベル"     ,+job_s_knight+ 18 18 6  7  6  7  2  7  9 ,+ally+ ,+w_hand_spear+ ,+common+))
@@ -262,14 +275,3 @@
 (defparameter *cells* nil)
 ;;(setf (values *cells* *units*)
 ;;      (make-cells-and-units *map1-chara* *map1-no-chara*))
-
-(defstruct game
-  (cursor_x 0)
-  (cursor_y 0)
-  (cells nil)
-  (units nil)
-  (select_unit nil)
-  (turn 0)
-  (move_area nil)
-  (atk_area nil)
-  (s_phase 0))
