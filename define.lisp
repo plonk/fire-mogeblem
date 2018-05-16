@@ -4,19 +4,24 @@
 (defparameter *game-play* t)
 (defparameter *game-opening* t)
 (defparameter *game-clear* nil)
+(defparameter *set-init-pos* t)
 
 (defstruct game
   (cursor_x 0)
   (cursor_y 0)
   (cells nil)
   (units nil)
+  (units_l nil)
+  (player_units nil)
   (select_unit nil)
   (turn 0)
   (move_area nil)
   (atk_area nil)
-  (s_phase 0))
+  (init_pos_area nil) ;;初期位置エリア
+  (s_phase 0)
+  (stage 1))
 
-(defparameter *map1-chara*
+(defparameter *map1-chara* ;;キャラ配置済み
   (make-array (* *map-h* *map-w*) :initial-contents
     '(0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
       0 0 0 0 k k k 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 2 0 0 0 0
@@ -32,7 +37,23 @@
       0 0 0 0 1 5 5 0 0 0 0 1 1 0 0 0 0 0 0 0 0 0 0 0 2 2 0 0 0 0
       0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0)))
 
-(defparameter *map1-no-chara*
+(defparameter *map1-enemy* ;;敵キャラのみ配置済み
+  (make-array (* *map-h* *map-w*) :initial-contents
+    '(0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+      0 0 0 0 k k k 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 2 0 0 0 0
+      0 0 0 1 h 1 2 4 0 0 0 0 0 0 0 0 0 0 0 5 5 5 1 1 2 5 2 1 0 0
+      0 0 1 1 1 1 1 4 4 0 0 0 0 0 0 6 1 1 1 1 1 1 1 1 1 1 5 1 1 0
+      0 1 1 1 7 1 k 4 4 4 0 0 0 0 1 1 1 1 1 2 1 1 1 1 1 1 1 1 1 0
+      0 1 k 1 1 1 2 4 4 4 4 4 4 1 k 1 1 1 1 1 0 0 0 1 1 1 1 1 1 0
+      0 1 1 1 k k 1 2 4 4 4 2 1 1 1 2 1 1 1 0 0 0 0 1 6 1 1 1 1 0
+      0 1 1 5 1 1 i 1 3 3 2 1 1 1 1 1 1 0 0 0 0 1 1 1 1 1 1 1 0 0
+      0 1 1 1 1 1 1 3 1 1 1 k 1 k 1 2 2 0 0 0 1 1 1 1 1 1 1 0 0 0
+      0 0 1 1 1 k 1 1 6 1 1 1 1 1 2 2 0 0 0 2 1 j 1 1 2 1 0 0 0 0
+      0 0 0 1 1 1 1 1 1 1 1 2 1 1 0 0 0 0 0 0 1 1 2 1 1 1 0 0 0 0
+      0 0 0 0 1 5 5 0 0 0 0 1 1 0 0 0 0 0 0 0 0 0 0 0 2 2 0 0 0 0
+      0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0)))
+
+(defparameter *map1-no-chara* ;;キャラなし
   (make-array (* *map-h* *map-w*) :initial-contents
        '(0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
          0 0 0 0 1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 2 0 0 0 0
@@ -47,6 +68,12 @@
          0 0 0 1 1 1 1 1 1 1 1 2 1 1 0 0 0 0 0 0 1 1 2 1 1 1 0 0 0 0
          0 0 0 0 1 5 5 0 0 0 0 1 1 0 0 0 0 0 0 0 0 0 0 0 2 2 0 0 0 0
          0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0)))
+
+;;ステージごとの初期位置(真ん中)
+(defparameter *stage-init-pos*
+  '((0 0) (6 24)))
+;;周囲のマス
+(defparameter *ar-cell* '((0 1) (1 1) (1 0) (1 -1) (0 -1) (-1 -1) (-1 0) (-1 1) (0 0)))
 
 ;;f:文字色 b:背景色
 (defconstant +black+   charms/ll:COLOR_BLACK)
@@ -85,6 +112,29 @@
 (defparameter +black/p-move-b+ nil)
 (defparameter +black/e-move-b+ nil)
 (defparameter +black/atk-b+    nil)
+(defparameter +black/yellow+   nil)
+(defparameter +white/black+    nil)
+
+;;画面をクリア
+(defun clear-windows (&rest window)
+  (dolist (win window)
+    (charms:clear-window win)))
+
+;;画面描画
+(defun refresh-windows (&rest window)
+  (dolist (win window)
+    (charms:refresh-window win)))
+
+;;ウィンドウ消す
+(defun erase-window (&rest window)
+  (dolist (win window)
+    (charms:clear-window win)
+    (charms:refresh-window win)))
+
+;;枠表示
+(defun draw-windows-box (&rest window)
+  (dolist (win window)
+    (draw-window-box win)))
 
 (defenum:defenum phase-num
     (+select_unit+ +select_move+ +select_attack+ +select_max+))
@@ -95,7 +145,7 @@
 (defenum:defenum turn-num
   (+p_turn+ +e_turn+ +turn_max+))
 
-(defenum:defenum unit-rank
+(defenum:defenum unit-rank2
   (+common+ +leader+ +boss+))
 ;;地形データ
 (defstruct celldesc
@@ -123,7 +173,7 @@
 ;;ユニットデータ
 (defstruct unit
   (name nil) (job 0) (hp 0) (maxhp 0) (str 0) (skill 0)
-  (w_lv 0) (agi 0) (luck 0) (def 0) (move 0) (weapon 0)
+  (w_lv 0) (agi 0) (luck 0) (def 0) (move 0) (weapon 0) (exp 0)
   (x 0) (y 0) (unit-num 0) (team 0) (alive? t) (act? nil) (rank 0))
 
 
@@ -222,16 +272,42 @@
 (defparameter *units-data*
   ;;       name job hp maxhp str skill w_lv agi luck def move weapon rank
   `((A . ("もげぞう"   ,+job_lord+     18 18 5  3  5  7  7  7  7 ,+ally+ ,+w_rapier+ ,+leader+))
-    (B . ("ジェイガン"  ,+job_paradin+  20 20 7 10 10  8  1  9 10 ,+ally+ ,+w_iron_sword+ ,+common+))
+    (B . ("ジェイガン" ,+job_paradin+  20 20 7 10 10  8  1  9 10 ,+ally+ ,+w_iron_sword+ ,+common+))
     (C . ("カイン"     ,+job_s_knight+ 18 18 7  5  5  6  3  7  9 ,+ally+ ,+w_spear+ ,+common+))
     (D . ("アベル"     ,+job_s_knight+ 18 18 6  7  6  7  2  7  9 ,+ally+ ,+w_hand_spear+ ,+common+))
     (E . ("ドーガ"     ,+job_a_knight+ 18 18 7  3  4  3  1 11  5 ,+ally+ ,+w_iron_sword+ ,+common+))
-    (F . ("ゴードン"    ,+job_archer+   16 16 5  1  5  4  4  6  5 ,+ally+ ,+w_cross_bow+ ,+common+))
+    (F . ("ゴードン"   ,+job_archer+   16 16 5  1  5  4  4  6  5 ,+ally+ ,+w_cross_bow+ ,+common+))
     (G . ("シーダ"     ,+job_p_knight+ 16 16 3  6  7 12  9  7  8 ,+ally+ ,+w_iron_sword+ ,+common+))
-    (H . ("ガザック"    ,+job_pirate+   24 24 7  3  7  8  0  6  6 ,+enemy+ ,+w_steal_ax+ ,+boss+))
+    (H . ("ガザック"   ,+job_pirate+   24 24 7  3  7  8  0  6  6 ,+enemy+ ,+w_steal_ax+ ,+boss+))
     (I . ("ガルダ兵"   ,+job_hunter+   18 18 6  1  5  5  0  3  6 ,+enemy+ ,+w_bow+ ,+common+))
     (J . ("ガルダ兵"   ,+job_thief+    16 16 3  1  2  9  0  2  7 ,+enemy+ ,+w_iron_sword+ ,+common+))
     (K . ("ガルダ兵"   ,+job_pirate+   18 18 5  1  5  6  0  4  6 ,+enemy+ ,+w_ax+ ,+common+))))
+
+
+(defparameter *defo-player-units*
+  (make-array 7 :initial-contents
+        (list (make-unit :name "もげぞう" :job +job_lord+ :hp 18 :maxhp 18
+                         :str 5 :skill 3 :w_lv 5 :agi 7 :luck 7 :def 7
+                         :move 7 :weapon +w_rapier+ :team +ally+ :rank +leader+)
+              (make-unit :name "ジェイガン" :job +job_paradin+ :hp 20 :maxhp 20
+                     :str 7 :skill 10 :w_lv 10 :agi 8 :luck 1 :def 9
+                     :move 10 :weapon +w_iron_sword+ :team +ally+ :rank +common+)
+              (make-unit :name "カイン" :job +job_s_knight+ :hp 18 :maxhp 18
+                     :str 7 :skill 5 :w_lv 5 :agi 6 :luck 3 :def 7
+                     :move 9 :weapon +w_spear+ :team +ally+ :rank +common+)
+              (make-unit :name "アベル" :job +job_s_knight+ :hp 18 :maxhp 18
+                     :str 6 :skill 7 :w_lv 6 :agi 7 :luck 2 :def 7
+                     :move 9 :weapon +w_hand_spear+ :team +ally+ :rank +common+)
+              (make-unit :name "ドーガ" :job +job_a_knight+ :hp 18 :maxhp 18
+                     :str 7 :skill 3 :w_lv 4 :agi 3 :luck 1 :def 11
+                     :move 5 :weapon +w_iron_sword+ :team +ally+ :rank +common+)
+              (make-unit :name "ゴードン" :job +job_archer+ :hp 16 :maxhp 16
+                     :str 5 :skill 1 :w_lv 5 :agi 4 :luck 4 :def 6
+                     :move 5 :weapon +w_cross_bow+ :team +ally+ :rank +common+)
+              (make-unit :name "シーダ" :job +job_p_knight+ :hp 16 :maxhp 16
+                     :str 3 :skill 6 :w_lv 7 :agi 12 :luck 9 :def 7
+                     :move 8 :weapon +w_iron_sword+ :team +ally+ :rank +common+))))
+
 #|
 (defparameter *units*
   (make-array 11 :initial-contents

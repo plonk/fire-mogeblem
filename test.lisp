@@ -1,4 +1,4 @@
-;;TODO 行動済み処理
+;;TODO テキトーにマップ追加　クリアしたら次のマップ行くようにする
 
 (ql:quickload '(cl-charms bordeaux-threads alexandria defenum))
 
@@ -96,33 +96,58 @@ CL-USER 10 > (minimum '((a 1) (b -1) (c -2)) #'< #'second)
 (defmethod unit-weapondesc ((u unit))
   (aref *weapondescs* (unit-weapon u)))
 
+
+
+;;初期位置選択
+
+
 ;;ユニットのデータ作成
 (defun make-unit-data (unit-c x y)
-  (let ((data (cdr (assoc unit-c *units-data*))))
+  (let* ((data (cdr (assoc unit-c *units-data*))))
     (apply #'make-unit
-      (append (mapcan #'list
-                '(:name :job :hp :maxhp :str :skill :w_lv :agi :luck :def :move :team :weapon :rank)
-                data)
-              (list :unit-num unit-c :x x :y y)))))
+	   (append (mapcan #'list
+			   '(:name :job :hp :maxhp :str :skill
+			     :w_lv :agi :luck :def :move :team :weapon :rank)
+			   data)
+		   (list :unit-num unit-c :x x :y y)))))
+
+;;プレイヤーのマップ初期位置設定
+(defun set-start-pos-player (c x y game)
+  (let* ((num (- (char-code c) 97))
+	 (unit (aref (game-player_units game) num)))
+    (setf (unit-x unit) x
+	  (unit-y unit) y)))
+ 
 
 ;;地形データと全ユニットデータ作成
 (defun make-cells-and-units (game map map-no-chara)
-  (let ((units-list nil) (cells (make-array (list *map-h* *map-w*)))
+  (let ((cells (make-array (list *map-h* *map-w*)))
         (units nil))
     (loop for y from 0 below *map-h* do
       (loop for x from 0 below *map-w* do
        (let ((c (aref map (+ (* *map-w* y) x))))
-          (if (numberp c)
-              (setf (aref cells y x) c)
-              (progn
-                (setf (aref cells y x) (aref map-no-chara (+ (* *map-w* y) x)))
-                (push (make-unit-data c x y) units-list))))))
-    ;;(setf units-list (sort units-list #'< :key #'(lambda (x) (unit-unit-num x))))
-    (setf units (make-array (length units-list)
-                 :initial-contents units-list))
+          (cond 
+	    ((numberp c) ;;ユニットいない
+	     (setf (aref cells y x) c))
+	    ;;((>= 103 (char-code c) 97) ;;プレイヤー側ユニット
+	    ;; (setf (aref cells y x) (aref map-no-chara (+ (* *map-w* y) x)))
+	    ;; (set-start-pos-player c x y game))
+	    (t ;;敵ユニット
+	     (setf (aref cells y x) (aref map-no-chara (+ (* *map-w* y) x)))
+	     (push (make-unit-data c x y) (game-units_l game)))))))
+    ;;敵ユニットと味方ユニット合体
+    ;;(setf units-list (append units-list (coerce (player-units game) 'list)))
+    (setf units (make-array (length (game-units_l game))
+			    :initial-contents (game-units_l game)))
     (setf (game-cells game) cells
           (game-units game) units)))
 
+;;ステージ終了時に生き残ってる味方ユニット
+(defun get-alive-p-units (game)
+  (remove-if #'(lambda (u)
+	         (or (null (unit-alive? u))
+		     (= +enemy+ (unit-team u))))
+	     (game-units game)))
 
 ;;windowの枠
 (defun draw-window-border (window
@@ -181,7 +206,9 @@ CL-USER 10 > (minimum '((a 1) (b -1) (c -2)) #'< #'second)
   (define-color-pair (+black/player-b+ 12) +black+ +player-b+)
   (define-color-pair (+black/p-move-b+ 13) +black+ +p-move-b+)
   (define-color-pair (+black/e-move-b+ 14) +black+ +e-move-b+)
-  (define-color-pair (+black/atk-b+    15) +black+ +atk-b+))
+  (define-color-pair (+black/atk-b+    15) +black+ +atk-b+)
+  (define-color-pair (+black/yellow+   16) +black+ +yellow+)
+  (define-color-pair (+white/black+    17) +white+ +black+))
 
 ;;疑似カーソル移動
 (defun cursor-move (game x y window)
@@ -301,6 +328,37 @@ CL-USER 10 > (minimum '((a 1) (b -1) (c -2)) #'< #'second)
        ((= cell +cell_fort+)    +black/fort-b+)
        ((= cell +cell_castle+)  +black/castle-b+)))))
 
+;;初期位置きめるときの地形描画
+(defun show-set-pos (game window window2 unit-win mes-win)
+  (clear-windows window window2 unit-win mes-win)
+  (loop for y from 0 below *map-h* do
+       (loop for x from 0 below *map-w* do
+	    (let* ((cell (aref (game-cells game) y x)) (unit (get-unit x y (game-units game)))
+		   (color (get-cell-color cell nil))
+		   (aa (celldesc-aa (aref *celldescs* cell))))
+	      (when (and unit (unit-alive? unit))
+		(if (= (unit-team unit) +ally+)
+		    (setf color +black/player-b+)
+		    (setf color +black/red+))
+		(setf aa (jobdesc-aa (unit-jobdesc unit))))
+	      (when (aref (game-init_pos_area game) y x)
+		(setf color +black/yellow+))
+	      (when (and (= (game-cursor_x game) x)
+			 (= (game-cursor_y game) y))
+		(setf color +black/white+)
+		(show-cell-data cell window2)
+		(when (and unit (unit-alive? unit))
+		  (show-unit-data unit unit-win)))
+	      (with-colors (window color)
+		(charms:write-string-at-point
+		 window aa (+ (* x 2) 1) (1+ y))))))
+  (charms:write-string-at-point
+    mes-win
+    "配置する場所を選んでください"
+    1 1)
+  (draw-windows-box window window2 unit-win mes-win)
+  (refresh-windows window window2 unit-win mes-win))
+  
 ;;地形とユニット描画
 (defun show-cell-unit (game window window2 unit-win)
   (loop for y from 0 below *map-h* do
@@ -346,7 +404,20 @@ CL-USER 10 > (minimum '((a 1) (b -1) (c -2)) #'< #'second)
                    aa (celldesc-aa (aref *celldescs* cell))))
          (with-colors (window color)
              (charms:write-string-at-point
-                window aa (+ (* x 2) 1) (1+ y)))))))
+	      window aa (+ (* x 2) 1) (1+ y)))))))
+
+;;ユニットを置ける初期位置エリアを求める
+(defun get-init-pos-area (game)
+  (let* ((pos (nth (game-stage game) *stage-init-pos*))
+	 (d-y (car pos)) (d-x (cadr pos))
+	 (can-pos (mapcar #'(lambda (yx) (list (+ d-y (car yx)) (+ d-x (cadr yx)))) *ar-cell*)))
+    (setf (game-cursor_x game) d-x
+	  (game-cursor_y game) d-y)
+    (loop for y from 0 below *map-h*
+       do (loop for x from 0 below *map-w*
+	     do (when (find (list y x) can-pos :test #'equal)
+		  (setf (aref (game-init_pos_area game) y x) t))))))
+	      
 
 ;;ユニットの移動可能範囲取得
 (defun can-move-area (x y move movecost team game)
@@ -809,6 +880,87 @@ CL-USER 10 > (minimum '((a 1) (b -1) (c -2)) #'< #'second)
   (charms:write-string-at-point window2 "地形データ" 3 0)
   (charms:write-string-at-point unit-win "ユニットデータ" 10 0))
 
+;;マップに配置するキャラ表示
+(defun show-set-units (game c-win cursor mes-win)
+  (clear-windows c-win mes-win)
+   (loop for u across (game-player_units game)
+	 for y from 1 
+      do (let ((color +white/black+))
+	   (when (= y (1+ cursor))
+	     (setf color +black/white+))
+	   (with-colors (c-win color)
+	     (charms:write-string-at-point
+	      c-win
+	      (format nil "~A" (unit-name u))
+	      1 y))))
+   (charms:write-string-at-point
+    mes-win
+    "配置するユニットを選んでください"
+    1 1)
+   (draw-windows-box c-win mes-win)
+   (refresh-windows c-win mes-win)
+   (let ((c (charms:get-char c-win)))
+	 ;;(len (length (game-player_units game))))
+     (cond
+       ((eql c #\z)
+	(aref (game-player_units game) cursor))
+       ((eql c (code-char charms/ll:key_up))
+	(show-set-units game c-win (1- cursor) mes-win))
+       ((eql c (code-char charms/ll:key_down))
+	(show-set-units game c-win (1+ cursor) mes-win))
+       (t
+	(show-set-units game c-win cursor mes-win)))))
+
+
+;;ユニットをマップに置く
+(defun set-unit-map (unit game window window2 unit-win mes-win)
+  (show-set-pos game window window2 unit-win mes-win) ;;マップ表示
+  (let ((c (charms:get-char window))
+	(x (game-cursor_x game))
+	(y (game-cursor_y game)))
+    (cond
+      ((eql c #\z)
+       (if (and (null (get-unit x y (game-units game))) ;;ユニットがいない
+		(aref (game-init_pos_area game) y x)) ;;初期配置エリア内
+	   (progn
+	     (setf (unit-x unit) x
+		   (unit-y unit) y) ;;初期位置設定
+	     (push unit (game-units_l game)) ;;全ユニットリストに追加
+	     (setf (game-units game) ;;全ユニットデータ上書き
+		   (make-array (length (game-units_l game)) ;;リストから配列にする
+			       :initial-contents (game-units_l game)))
+	     (setf (game-player_units game) ;;配置したユニットを削除
+		   (remove (unit-name unit) (game-player_units game)
+			   :test #'equal :key #'(lambda (x) (unit-name x)))))
+	   ;;おけなかったらループ
+	   (set-unit-map unit game window window2 unit-win mes-win)))
+      ((eql c (code-char charms/ll:key_up))
+       (cursor-move game 0 -1 window)
+       (set-unit-map unit game window window2 unit-win mes-win))
+      ((eql c (code-char charms/ll:key_down))
+       (cursor-move game 0 1 window)
+       (set-unit-map unit game window window2 unit-win mes-win))
+      ((eql c (code-char charms/ll:key_right))
+       (cursor-move game 1 0 window)
+       (set-unit-map unit game window window2 unit-win mes-win))
+      ((eql c (code-char charms/ll:key_left))
+       (cursor-move game -1 0 window)
+       (set-unit-map unit game window window2 unit-win mes-win))
+      (t (set-unit-map unit game window window2 unit-win mes-win)))))
+
+;;初期位置決める
+(defun set-units-pos (game window window2 unit-win mes-win)
+  (let ((c-win (charms:make-window 20 10 0 (+ 2 *map-h*)))
+        (num (min 7 (length (game-player_units game)))) ;;初期配置数
+	(unit nil))
+    (charms/ll:keypad (charms::window-pointer c-win) 1)
+    (loop for i from 0 below num 
+       do
+	 (show-set-pos game window window2 unit-win mes-win)
+	 (setf unit (show-set-units game c-win 0 mes-win)) ;;配置するユニットを取り出す
+	 (set-unit-map unit game window window2 unit-win mes-win))
+    (setf *set-init-pos* nil)))
+
 ;;キー入力
 (defun key-down-event (game window atk-win)
   (let ((c (charms:get-char window)))
@@ -890,11 +1042,14 @@ CL-USER 10 > (minimum '((a 1) (b -1) (c -2)) #'< #'second)
     (charms/ll:initscr)
     (charms:disable-echoing)
     (charms:enable-raw-input)
+    (charms/ll:curs-set 0) ;;カーソル消す
     (start-color)
     (init-color)
     (let ((game (make-game :s_phase +select_unit+ :turn +p_turn+
+			   :player_units *defo-player-units*
                            :atk_area (make-array (list *map-h* *map-w*) :initial-element nil)
-                           :move_area (make-array (list *map-h* *map-w*) :initial-element nil)))
+                           :move_area (make-array (list *map-h* *map-w*) :initial-element nil)
+			   :init_pos_area (make-array (list *map-h* *map-w*) :initial-element nil)))
           (window (charms:make-window (+ 2 (* 2 *map-w*))
                                       (+ 2 *map-h*) 0 0)))
              ;;特殊キーを使う
@@ -908,17 +1063,22 @@ CL-USER 10 > (minimum '((a 1) (b -1) (c -2)) #'< #'second)
            with mes-win = (charms:make-window 24 6 35 (+ 6 (+ 2 *map-h*)))
            do
             (cond
-              (*game-opening*
+              (*game-opening* ;;オープニング
                 (game-opening-message game window))
-              (*game-clear*
+              (*game-clear* ;;ゲームクリア
                 (gamen-clear window window2 unit-win atk-win mes-win)
                 (gamen-refresh window window2 unit-win atk-win mes-win)
                 (game-clear-message game window))
-              (*game-over?*
+              (*game-over?* ;;ゲームオーバー
                 (gamen-clear window window2 unit-win atk-win mes-win)
                 (gamen-refresh window window2 unit-win atk-win mes-win)
                 (game-over-message game window))
-              ((null *game-over?*)
+	      (*set-init-pos*
+	       (make-cells-and-units game *map1-enemy* *map1-no-chara*)
+	       (get-init-pos-area game)
+	       
+	       (set-units-pos game window window2 unit-win mes-win))
+              (t ;;ゲーム進行中
                 (gamen-clear window window2 unit-win mes-win)
                 ;;地形とユニットセット
                 (if (or (null (game-cells game)) (null (game-units game)))
@@ -942,3 +1102,4 @@ CL-USER 10 > (minimum '((a 1) (b -1) (c -2)) #'< #'second)
                 (gamen-refresh window window2 unit-win atk-win mes-win)
 
                 (sleep 0.01)))))))
+
