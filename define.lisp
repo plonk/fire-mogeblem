@@ -3,6 +3,7 @@
 (defparameter *game-over?* nil)
 (defparameter *game-play* t)
 (defparameter *game-opening* t)
+(defparameter *stage-clear* nil)
 (defparameter *game-clear* nil)
 (defparameter *set-init-pos* t)
 
@@ -42,7 +43,7 @@
     '(0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
       0 0 0 0 k k k 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 2 0 0 0 0
       0 0 0 1 h 1 2 4 0 0 0 0 0 0 0 0 0 0 0 5 5 5 1 1 2 5 2 1 0 0
-      0 0 1 1 1 1 1 4 4 0 0 0 0 0 0 6 1 1 1 1 1 1 1 1 1 1 5 1 1 0
+      0 0 1 1 1 1 1 4 4 0 0 0 0 0 0 6 1 1 1 1 1 1 1 1 1 7 5 1 1 0
       0 1 1 1 7 1 k 4 4 4 0 0 0 0 1 1 1 1 1 2 1 1 1 1 1 1 1 1 1 0
       0 1 k 1 1 1 2 4 4 4 4 4 4 1 k 1 1 1 1 1 0 0 0 1 1 1 1 1 1 0
       0 1 1 1 k k 1 2 4 4 4 2 1 1 1 2 1 1 1 0 0 0 0 1 6 1 1 1 1 0
@@ -53,12 +54,12 @@
       0 0 0 0 1 5 5 0 0 0 0 1 1 0 0 0 0 0 0 0 0 0 0 0 2 2 0 0 0 0
       0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0)))
 
-(defparameter *map1-no-chara* ;;キャラなし
+(defparameter *map1-no-unit* ;;キャラなし
   (make-array (* *map-h* *map-w*) :initial-contents
        '(0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
          0 0 0 0 1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 2 0 0 0 0
          0 0 0 1 1 1 2 4 0 0 0 0 0 0 0 0 0 0 0 5 5 5 1 1 2 5 2 1 0 0
-         0 0 1 1 1 1 1 4 4 0 0 0 0 0 0 6 1 1 1 1 1 1 1 1 1 1 5 1 1 0
+         0 0 1 1 1 1 1 4 4 0 0 0 0 0 0 6 1 1 1 1 1 1 1 1 1 7 5 1 1 0
          0 1 1 1 7 1 1 4 4 4 0 0 0 0 1 1 1 1 1 2 1 1 1 1 1 1 1 1 1 0
          0 1 1 1 1 1 2 4 4 4 4 4 4 1 1 1 1 1 1 1 0 0 0 1 1 1 1 1 1 0
          0 1 1 1 1 1 1 2 4 4 4 2 1 1 1 2 1 1 1 0 0 0 0 1 6 1 1 1 1 0
@@ -69,9 +70,48 @@
          0 0 0 0 1 5 5 0 0 0 0 1 1 0 0 0 0 0 0 0 0 0 0 0 2 2 0 0 0 0
          0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0)))
 
-;;ステージごとの初期位置(真ん中)
+(defparameter *map2-enemy* ;;敵キャラのみ配置済み
+  (make-array (* *map-h* *map-w*) :initial-contents
+	      '(1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 3 3 1 1 1 1 1 1 1 1 1 1 1
+		1 5 1 1 2 2 2 1 1 1 4 1 4 1 1 1 1 1 5 3 3 L 3 3 3 2 1 1 1 1
+		1 1 1 1 2 1 2 2 1 4 4 4 4 1 1 1 1 1 2 L 1 1 1 1 2 1 2 1 1 1
+		1 1 1 1 1 1 1 1 1 4 4 3 3 1 1 1 1 1 1 1 1 1 1 1 1 1 3 1 1 0
+		0 1 1 1 5 1 1 1 1 1 1 1 1 1 1 1 1 L 1 2 1 1 1 1 1 1 1 1 1 0
+		0 1 1 1 1 1 2 1 2 2 2 2 2 1 2 1 1 1 1 i 1 1 2 K K 1 1 1 1 1
+		0 1 1 1 1 1 1 2 2 2 2 2 1 1 1 2 1 1 K 1 i 1 1 1 1 1 M 1 1 0
+		0 1 1 1 1 1 1 1 3 6 2 1 1 1 1 1 1 1 1 1 j 1 1 1 1 1 1 1 1 1
+		0 1 1 1 1 1 1 3 1 1 3 3 2 2 1 2 2 1 L 1 1 1 1 3 L 3 1 1 1 1
+		1 1 1 1 1 1 1 1 2 3 4 4 4 1 2 2 1 1 6 2 1 1 1 1 3 3 3 1 1 1
+		1 1 1 1 1 1 1 3 3 4 4 2 2 2 2 1 1 1 1 4 4 1 2 1 4 4 4 3 3 1
+		1 1 1 1 1 1 1 4 1 1 1 2 2 1 1 1 1 1 3 1 1 1 1 1 2 2 1 1 3 3
+		1 1 1 1 1 1 1 4 1 1 1 1 1 1 1 1 1 1 3 1 1 1 1 1 1 1 1 1 1 1)))
+
+(defparameter *map2-no-unit* ;;キャラなし
+  (make-array (* *map-h* *map-w*) :initial-contents
+	      '(1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 3 3 1 1 1 1 1 1 1 1 1 1 1
+		1 5 1 1 2 2 2 1 1 1 4 1 4 1 1 1 1 1 5 3 3 3 3 3 3 2 1 1 1 1
+		1 1 1 1 2 1 2 2 1 4 4 4 4 1 1 1 1 1 2 1 1 1 1 1 2 1 2 1 1 1
+		1 1 1 1 1 1 1 1 1 4 4 3 3 1 1 1 1 1 1 1 1 1 1 1 1 1 3 1 1 0
+		0 1 1 1 5 1 1 1 1 1 1 1 1 1 1 1 1 6 1 2 1 1 1 1 1 1 1 1 1 0
+		0 1 1 1 1 1 2 1 2 2 2 2 2 1 2 1 1 1 1 1 1 1 2 1 1 1 1 1 1 1
+		0 1 1 1 1 1 1 2 2 2 2 2 1 1 1 2 1 1 1 1 1 1 1 1 1 1 7 1 1 0
+		0 1 1 1 1 1 1 1 3 6 2 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1
+		0 1 1 1 1 1 1 3 1 1 3 3 2 2 1 2 2 1 1 1 1 1 1 3 3 3 1 1 1 1
+		1 1 1 1 1 1 1 1 2 3 4 4 4 1 2 2 1 1 6 2 1 1 1 1 3 3 3 1 1 1
+		1 1 1 1 1 1 1 3 3 4 4 2 2 2 2 1 1 1 1 4 4 1 2 1 4 4 4 3 3 1
+		1 1 1 1 1 1 1 4 1 1 1 2 2 1 1 1 1 1 3 1 1 1 1 1 2 2 1 1 3 3
+		1 1 1 1 1 1 1 4 1 1 1 1 1 1 1 1 1 1 3 1 1 1 1 1 1 1 1 1 1 1)))
+
+;;すべてのマップリスト
+(defparameter *all-enemy-map*
+  (list nil *map1-enemy* *map2-enemy*))
+
+(defparameter *all-no-unit-map*
+  (list nil *map1-no-unit* *map2-no-unit*))
+
+;;ステージごとの初期位置(真ん中) (y x)
 (defparameter *stage-init-pos*
-  '((0 0) (6 24)))
+  '((0 0) (6 24) (10 2)))
 ;;周囲のマス
 (defparameter *ar-cell* '((0 1) (1 1) (1 0) (1 -1) (0 -1) (-1 -1) (-1 0) (-1 1) (0 0)))
 
@@ -131,6 +171,18 @@
     (charms:clear-window win)
     (charms:refresh-window win)))
 
+
+;;windowの枠
+(defun draw-window-border (window
+                           &optional
+                             (ls #\|) (rs #\|) (ts #\-) (bs #\-)
+                             (tl #\+) (tr #\+) (bl #\+) (br #\+))
+  (apply #'charms/ll:wborder (charms::window-pointer window)
+         (mapcar #'char-code (list ls rs ts bs tl tr bl br))))
+
+(defun draw-window-box (window &optional (verch #\|) (horch #\-))
+  (charms/ll:box (charms::window-pointer window) (char-code verch) (char-code horch)))
+
 ;;枠表示
 (defun draw-windows-box (&rest window)
   (dolist (win window)
@@ -185,7 +237,7 @@
 ;;ジョブ
 (defenum:defenum job
     (+job_lord+ +job_paradin+ +job_s_knight+ +job_a_knight+ +job_archer+
-     +job_p_knight+ +job_pirate+ +job_hunter+ +job_thief+ +job_max+))
+     +job_p_knight+ +job_pirate+ +job_hunter+ +job_thief+ +job_bandit+ +job_max+))
 
 ;;ジョブデータ配列
 (defparameter *jobdescs*
@@ -208,7 +260,9 @@
               (make-jobdesc :name "ハンター" :aa "狩"
                 :movecost #(-1 1 2 3 -1 1 2 2))
               (make-jobdesc :name "盗賊" :aa "盗"
-                :movecost #(-1 1 2 4 -1 1 2 2)))))
+			    :movecost #(-1 1 2 4 -1 1 2 2))
+	      (make-jobdesc :name "山賊" :aa "さ"
+			    :movecost #(-1 1 2 1 2 1 2 2)))))
 
 ;;武器
 (defenum:defenum buki
@@ -281,7 +335,9 @@
     (H . ("ガザック"   ,+job_pirate+   24 24 7  3  7  8  0  6  6 ,+enemy+ ,+w_steal_ax+ ,+boss+))
     (I . ("ガルダ兵"   ,+job_hunter+   18 18 6  1  5  5  0  3  6 ,+enemy+ ,+w_bow+ ,+common+))
     (J . ("ガルダ兵"   ,+job_thief+    16 16 3  1  2  9  0  2  7 ,+enemy+ ,+w_iron_sword+ ,+common+))
-    (K . ("ガルダ兵"   ,+job_pirate+   18 18 5  1  5  6  0  4  6 ,+enemy+ ,+w_ax+ ,+common+))))
+    (K . ("ガルダ兵"   ,+job_pirate+   18 18 5  1  5  6  0  4  6 ,+enemy+ ,+w_ax+ ,+common+))
+    (L . ("ガルダ兵"   ,+job_bandit+   20 20 5  1  5  5  0  3  6 ,+enemy+ ,+w_ax+ ,+common+))
+    (M . ("もび太"     ,+job_bandit+   27 27 8  3  7  8  0  6  6 ,+enemy+ ,+w_steal_ax+ ,+boss+))))
 
 
 (defparameter *defo-player-units*

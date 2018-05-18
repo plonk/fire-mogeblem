@@ -1,4 +1,4 @@
-;;TODO テキトーにマップ追加　クリアしたら次のマップ行くようにする
+;;TODO 経験値＋レベルアップ
 
 (ql:quickload '(cl-charms bordeaux-threads alexandria defenum))
 
@@ -143,22 +143,12 @@ CL-USER 10 > (minimum '((a 1) (b -1) (c -2)) #'< #'second)
           (game-units game) units)))
 
 ;;ステージ終了時に生き残ってる味方ユニット
-(defun get-alive-p-units (game)
+(defun get-alive-ally-units (game)
   (remove-if #'(lambda (u)
 	         (or (null (unit-alive? u))
 		     (= +enemy+ (unit-team u))))
 	     (game-units game)))
 
-;;windowの枠
-(defun draw-window-border (window
-                           &optional
-                             (ls #\|) (rs #\|) (ts #\-) (bs #\-)
-                             (tl #\+) (tr #\+) (bl #\+) (br #\+))
-  (apply #'charms/ll:wborder (charms::window-pointer window)
-         (mapcar #'char-code (list ls rs ts bs tl tr bl br))))
-
-(defun draw-window-box (window &optional (verch #\|) (horch #\-))
-  (charms/ll:box (charms::window-pointer window) (char-code verch) (char-code horch)))
 
 (defun start-color ()
   (when (eql (charms/ll:has-colors) charms/ll:false)
@@ -1017,11 +1007,13 @@ CL-USER 10 > (minimum '((a 1) (b -1) (c -2)) #'< #'second)
      (cell-heal (game-units game) (game-cells game)))))
 
 ;;クリアチェック
-(defun check-game-clear (game)
+(defun check-stage-clear (game)
   (let ((leader (find +leader+ (game-units game) :key #'unit-rank))
         (castle (get-cell-pos +cell_castle+ (game-cells game))))
-    (if (equal (list (unit-x leader) (unit-y leader)) castle)
-        (setf *game-clear* t))))
+    (when (equal (list (unit-x leader) (unit-y leader)) castle)
+      (if (= (game-stage game) 5) ;;ステージ５クリアしたら終わり
+	  (setf *game-clear* t)
+	  (setf *stage-clear* t)))))
 
 ;;メッセージウィンドウ
 (defun show-mes-win (game mes-win)
@@ -1034,7 +1026,25 @@ CL-USER 10 > (minimum '((a 1) (b -1) (c -2)) #'< #'second)
        mes-win "移動先を選んでください" 1 1))
     ((= (game-s_phase game) +select_attack+)
      (charms:write-string-at-point
-       mes-win "攻撃したい相手を選んでください" 1 1))))
+      mes-win "攻撃したい相手を選んでください" 1 1))))
+
+;;全ユニット回復
+(defun heal-all-units (game)
+  (loop for u across (game-player_units game)
+     do
+       (setf (unit-hp u) (unit-maxhp u))))
+
+;;ステージデータ・セット
+(defun set-stage (game)
+  (setf *stage-clear* nil ;;ステージクリアフラグ消す
+	(game-player_units game) (get-alive-ally-units game) ;;生き残った味方ユニット
+	(game-units game) nil
+	(game-units_l game) nil)
+  (init-move-area (game-init_pos_area game)) ;;初期位置初期化
+  (heal-all-units game) ;;HP回復
+  (setf *set-init-pos* t) ;;ステージ開始初期位置設定フラグ
+  (incf (game-stage game))) ;;次のステージ
+  
 
 (defun hello-world ()
   (setf *random-state* (make-random-state t))
@@ -1064,7 +1074,9 @@ CL-USER 10 > (minimum '((a 1) (b -1) (c -2)) #'< #'second)
            do
             (cond
               (*game-opening* ;;オープニング
-                (game-opening-message game window))
+	       (game-opening-message game window))
+	      (*stage-clear*
+	       (set-stage game))
               (*game-clear* ;;ゲームクリア
                 (gamen-clear window window2 unit-win atk-win mes-win)
                 (gamen-refresh window window2 unit-win atk-win mes-win)
@@ -1073,17 +1085,15 @@ CL-USER 10 > (minimum '((a 1) (b -1) (c -2)) #'< #'second)
                 (gamen-clear window window2 unit-win atk-win mes-win)
                 (gamen-refresh window window2 unit-win atk-win mes-win)
                 (game-over-message game window))
-	      (*set-init-pos*
-	       (make-cells-and-units game *map1-enemy* *map1-no-chara*)
-	       (get-init-pos-area game)
-	       
-	       (set-units-pos game window window2 unit-win mes-win))
+	      (*set-init-pos* ;;ステージ開始
+	       ;;地形とユニットセット
+	       (let ((mapu-e (nth (game-stage game) *all-enemy-map*))
+		     (mapu-no (nth (game-stage game) *all-no-unit-map*)))
+		 (make-cells-and-units game mapu-e mapu-no)
+		 (get-init-pos-area game)
+		 (set-units-pos game window window2 unit-win mes-win)))
               (t ;;ゲーム進行中
                 (gamen-clear window window2 unit-win mes-win)
-                ;;地形とユニットセット
-                (if (or (null (game-cells game)) (null (game-units game)))
-                    (make-cells-and-units game *map1-chara* *map1-no-chara*))
-
                 ;;描画
                 (show-cell-unit game window window2 unit-win)
                 ;;メッセージウィンドウ
@@ -1094,8 +1104,8 @@ CL-USER 10 > (minimum '((a 1) (b -1) (c -2)) #'< #'second)
                 ;;キー入力
                 (when (= (game-turn game) +p_turn+)
                   (key-down-event game window atk-win))
-                ;;クリアチェック
-                (check-game-clear game)
+                ;;ステージクリアチェック
+                (check-stage-clear game)
                 ;;ターンチェンジチェック
                 (check-turn-change game window window2 unit-win atk-win mes-win)
 
