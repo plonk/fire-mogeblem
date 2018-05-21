@@ -22,6 +22,13 @@
   (s_phase 0)
   (stage 1))
 
+(defstruct windows
+  (map nil)
+  (unit nil)
+  (atk nil)
+  (mes nil)
+  (cell nil))
+
 (defparameter *map1-chara* ;;キャラ配置済み
   (make-array (* *map-h* *map-w*) :initial-contents
     '(0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
@@ -220,13 +227,15 @@
 (defstruct jobdesc
   (name nil)
   (aa   nil)
+  (give_exp 0) ;;倒されたときに相手に与える経験値
   (movecost nil))
 
 ;;ユニットデータ
 (defstruct unit
   (name nil) (job 0) (hp 0) (maxhp 0) (str 0) (skill 0)
-  (w_lv 0) (agi 0) (luck 0) (def 0) (move 0) (weapon 0) (exp 0)
-  (x 0) (y 0) (unit-num 0) (team 0) (alive? t) (act? nil) (rank 0))
+  (w_lv 0) (agi 0) (luck 0) (def 0) (move 0) (weapon 0) (exp 0) (lv 1)
+  (x 0) (y 0) (unit-num 0) (team 0) (alive? t) (act? nil) (rank 0)
+  (lvup nil))
 
 
 
@@ -243,25 +252,25 @@
 (defparameter *jobdescs*
   ;;movecost= (海 草原 林 山 高山 町 砦 城)
   (make-array +job_max+ :initial-contents
-        (list (make-jobdesc :name "ロード" :aa "君"
+        (list (make-jobdesc :name "ロード" :aa "君" :give_exp 0
                             :movecost #(-1 1 2 4 -1 1 2 2))
-              (make-jobdesc :name "パラディン" :aa "聖"
+              (make-jobdesc :name "パラディン" :aa "聖" :give_exp 44
                 :movecost #(-1 1 3 6 -1 1 2 2))
-              (make-jobdesc :name "Sナイト" :aa "騎"
+              (make-jobdesc :name "Sナイト" :aa "騎" :give_exp 30
                 :movecost #(-1 1 3 -1 -1 1 2 2))
-              (make-jobdesc :name "Aナイト" :aa "重"
+              (make-jobdesc :name "Aナイト" :aa "重" :give_exp 32
                 :movecost #(-1 1 3 -1 -1 1 2 2))
-              (make-jobdesc :name "アーチャー" :aa "射"
+              (make-jobdesc :name "アーチャー" :aa "射" :give_exp 28
                 :movecost #(-1 1 3 -1 -1 1 2 2))
-              (make-jobdesc :name "Pナイト" :aa "天"
+              (make-jobdesc :name "Pナイト" :aa "天" :give_exp 36
                 :movecost #(1 1 1 1 1 1 1 1))
-              (make-jobdesc :name "海賊" :aa "海"
+              (make-jobdesc :name "海賊" :aa "海" :give_exp 24
                 :movecost #(2 1 2 4 -1 1 2 2))
-              (make-jobdesc :name "ハンター" :aa "狩"
+              (make-jobdesc :name "ハンター" :aa "狩" :give_exp 26
                 :movecost #(-1 1 2 3 -1 1 2 2))
-              (make-jobdesc :name "盗賊" :aa "盗"
+              (make-jobdesc :name "盗賊" :aa "盗" :give_exp 100 ;;40
 			    :movecost #(-1 1 2 4 -1 1 2 2))
-	      (make-jobdesc :name "山賊" :aa "さ"
+	      (make-jobdesc :name "山賊" :aa "さ" :give_exp 24
 			    :movecost #(-1 1 2 1 2 1 2 2)))))
 
 ;;武器
@@ -340,29 +349,37 @@
     (M . ("もび太"     ,+job_bandit+   27 27 8  3  7  8  0  6  6 ,+enemy+ ,+w_steal_ax+ ,+boss+))))
 
 
+;;lvup = ステータス上昇率 (HP 力 技 武器 速さ 運 守備 魔防)
 (defparameter *defo-player-units*
   (make-array 7 :initial-contents
         (list (make-unit :name "もげぞう" :job +job_lord+ :hp 18 :maxhp 18
-                         :str 5 :skill 3 :w_lv 5 :agi 7 :luck 7 :def 7
+                         :str 50 :skill 3 :w_lv 5 :agi 7 :luck 7 :def 7
+			 :lvup '(90 50 40 30 50 70 20 0)
                          :move 7 :weapon +w_rapier+ :team +ally+ :rank +leader+)
               (make-unit :name "ジェイガン" :job +job_paradin+ :hp 20 :maxhp 20
-                     :str 7 :skill 10 :w_lv 10 :agi 8 :luck 1 :def 9
-                     :move 10 :weapon +w_iron_sword+ :team +ally+ :rank +common+)
+			 :str 7 :skill 10 :w_lv 10 :agi 8 :luck 1 :def 9
+			 :lvup '(10 10 10 0 10 0 0 0)
+			 :move 10 :weapon +w_iron_sword+ :team +ally+ :rank +common+)
               (make-unit :name "カイン" :job +job_s_knight+ :hp 18 :maxhp 18
-                     :str 7 :skill 5 :w_lv 5 :agi 6 :luck 3 :def 7
-                     :move 9 :weapon +w_spear+ :team +ally+ :rank +common+)
+			 :lvup '(90 30 60 60 60 50 20 0)
+			 :str 7 :skill 5 :w_lv 5 :agi 6 :luck 3 :def 7
+			 :move 9 :weapon +w_spear+ :team +ally+ :rank +common+)
               (make-unit :name "アベル" :job +job_s_knight+ :hp 18 :maxhp 18
-                     :str 6 :skill 7 :w_lv 6 :agi 7 :luck 2 :def 7
-                     :move 9 :weapon +w_hand_spear+ :team +ally+ :rank +common+)
+			 :lvup '(70 40 50 70 50 40 20 0)
+			 :str 6 :skill 7 :w_lv 6 :agi 7 :luck 2 :def 7
+			 :move 9 :weapon +w_hand_spear+ :team +ally+ :rank +common+)
               (make-unit :name "ドーガ" :job +job_a_knight+ :hp 18 :maxhp 18
-                     :str 7 :skill 3 :w_lv 4 :agi 3 :luck 1 :def 11
-                     :move 5 :weapon +w_iron_sword+ :team +ally+ :rank +common+)
+			 :lvup '(60 20 40 20 40 20 10 0)
+			 :str 7 :skill 3 :w_lv 4 :agi 3 :luck 1 :def 11
+			 :move 5 :weapon +w_iron_sword+ :team +ally+ :rank +common+)
               (make-unit :name "ゴードン" :job +job_archer+ :hp 16 :maxhp 16
-                     :str 5 :skill 1 :w_lv 5 :agi 4 :luck 4 :def 6
-                     :move 5 :weapon +w_cross_bow+ :team +ally+ :rank +common+)
+			 :lvup '(40 30 30 50 30 40 10 0)
+			 :str 5 :skill 1 :w_lv 5 :agi 4 :luck 4 :def 6
+			 :move 5 :weapon +w_cross_bow+ :team +ally+ :rank +common+)
               (make-unit :name "シーダ" :job +job_p_knight+ :hp 16 :maxhp 16
-                     :str 3 :skill 6 :w_lv 7 :agi 12 :luck 9 :def 7
-                     :move 8 :weapon +w_iron_sword+ :team +ally+ :rank +common+))))
+			 :lvup '(50 20 70 80 90 70 20 0)
+			 :str 3 :skill 6 :w_lv 7 :agi 12 :luck 9 :def 7
+			 :move 8 :weapon +w_iron_sword+ :team +ally+ :rank +common+))))
 
 #|
 (defparameter *units*

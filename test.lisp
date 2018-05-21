@@ -1,4 +1,4 @@
-;;TODO 経験値＋レベルアップ
+;;TODO レベルによって敵のステータス変化
 
 (ql:quickload '(cl-charms bordeaux-threads alexandria defenum))
 
@@ -244,6 +244,89 @@ CL-USER 10 > (minimum '((a 1) (b -1) (c -2)) #'< #'second)
                 (unit-alive? unit))
            (return-from get-unit unit))))
 
+;;lvup = ステータス上昇率 (HP 力 技 武器 速さ 運 守備 魔防)
+;;レベルアップしたときの上昇したステータス表示
+(defun show-lv-up-status (unit window) 
+  (let* ((weapon (unit-weapondesc unit))
+         (w-name (weapondesc-name weapon))
+         (w-dmg (weapondesc-damage weapon))
+         (w-hit (weapondesc-hit weapon))
+         (w-wei (weapondesc-weight weapon))
+         (w-cri (weapondesc-critical weapon))
+         (w-ranmin (weapondesc-rangemin weapon))
+         (w-ranmax (weapondesc-rangemax weapon))
+	 (lvup (mapcar #'(lambda (x) (>= x (random 100))) (unit-lvup unit))))
+    (clear-windows window)
+    (charms:write-string-at-point
+    window
+    (format nil " 名前 : ~a ~a" (unit-name unit) (if (unit-act? unit) "(行動済み)" ""))
+    1 1)
+   (charms:write-string-at-point
+    window
+    (format nil "  Lv  : ~2d ↑ +1" (incf (unit-lv unit)))
+    1 2)
+   (charms:write-string-at-point
+    window
+    (if (nth 0 lvup)
+	(format nil "  HP  : ~2d ↑ +1" (incf (unit-maxhp unit)))
+	(format nil "  HP  : ~2d" (unit-maxhp unit)))
+    1 3)
+   (charms:write-string-at-point
+    window
+    (if (nth 1 lvup)
+	(format nil "  力  : ~2d ↑ +1" (incf (unit-str unit)))
+	(format nil "  力  : ~2d" (unit-str unit)))
+    1 4)
+   (charms:write-string-at-point
+    window
+    (if (nth 2 lvup)
+	(format nil "  技  : ~2d ↑ +1" (incf (unit-skill unit)))
+	(format nil "  技  : ~2d" (unit-skill unit)))
+    1 5)
+   (charms:write-string-at-point
+    window
+    (if (nth 3 lvup)
+	(format nil "武器Lv: ~2d ↑ +1" (incf (unit-w_lv unit)))
+	(format nil "武器Lv: ~2d" (unit-w_lv unit)))
+    1 6)
+   (charms:write-string-at-point
+    window
+    (if (nth 4 lvup)
+	(format nil "素早さ: ~2d ↑ +1" (incf (unit-agi unit)))
+	(format nil "素早さ: ~2d" (unit-agi unit)))
+    1 7)
+   (charms:write-string-at-point
+    window
+    (if (nth 5 lvup)
+	(format nil " 幸運 : ~2d ↑ +1" (incf (unit-luck unit)))
+	(format nil " 幸運 : ~2d" (unit-luck unit)))
+    1 8)
+   (charms:write-string-at-point
+    window
+    (if (nth 6 lvup)
+	(format nil "守備力: ~2d ↑ +1" (incf (unit-def unit)))
+	(format nil "守備力: ~2d" (unit-def unit)))
+    1 9)
+   (charms:write-string-at-point
+    window
+    (format nil "移動力: ~2d" (unit-move unit))
+    1 10)
+   (charms:write-string-at-point
+    window
+    (format nil " 武器 : ~a" w-name)
+    1 11)
+   (charms:write-string-at-point
+    window
+    (format nil "        威力:~2d 重量:~2d 命中:~2d~%         必殺:~2d レンジ:~d〜~d"
+     w-dmg w-wei w-hit w-cri w-ranmin w-ranmax)
+    1 12)
+   (draw-window-box window) ;;枠
+   (charms:write-string-at-point
+    window
+    "レベルアップ"
+    1 0)
+   (refresh-windows window)))
+
 ;;ユニットデータを表示
 (defun show-unit-data (unit window)
   (let* ((weapon (unit-weapondesc unit))
@@ -260,45 +343,49 @@ CL-USER 10 > (minimum '((a 1) (b -1) (c -2)) #'< #'second)
     1 1)
    (charms:write-string-at-point
     window
-    (format nil "  HP  : ~2d/~2d" (unit-hp unit) (unit-maxhp unit))
+    (format nil "  Lv  : ~2d" (unit-lv unit))
     1 2)
    (charms:write-string-at-point
     window
-    (format nil "  力  : ~2d" (unit-str unit))
+    (format nil "  HP  : ~2d/~2d" (unit-hp unit) (unit-maxhp unit))
     1 3)
    (charms:write-string-at-point
     window
-    (format nil "  技  : ~2d" (unit-skill unit))
+    (format nil "  力  : ~2d" (unit-str unit))
     1 4)
    (charms:write-string-at-point
     window
-    (format nil "武器Lv: ~2d" (unit-w_lv unit))
+    (format nil "  技  : ~2d" (unit-skill unit))
     1 5)
    (charms:write-string-at-point
     window
-    (format nil "素早さ: ~2d" (unit-agi unit))
+    (format nil "武器Lv: ~2d" (unit-w_lv unit))
     1 6)
    (charms:write-string-at-point
     window
-    (format nil " 幸運 : ~2d" (unit-luck unit))
+    (format nil "素早さ: ~2d" (unit-agi unit))
     1 7)
    (charms:write-string-at-point
     window
-    (format nil "守備力: ~2d" (unit-def unit))
+    (format nil " 幸運 : ~2d" (unit-luck unit))
     1 8)
    (charms:write-string-at-point
     window
-    (format nil "移動力: ~2d" (unit-move unit))
+    (format nil "守備力: ~2d" (unit-def unit))
     1 9)
    (charms:write-string-at-point
     window
-    (format nil " 武器 : ~a" w-name)
+    (format nil "移動力: ~2d" (unit-move unit))
     1 10)
+   (charms:write-string-at-point
+    window
+    (format nil " 武器 : ~a" w-name)
+    1 11)
    (charms:write-string-at-point
     window
     (format nil "        威力:~2d 重量:~2d 命中:~2d~%         必殺:~2d レンジ:~d〜~d"
      w-dmg w-wei w-hit w-cri w-ranmin w-ranmax)
-    1 11)))
+    1 12)))
 
 ;;地形の色取得
 (defun get-cell-color (cell can-move)
@@ -533,7 +620,8 @@ CL-USER 10 > (minimum '((a 1) (b -1) (c -2)) #'< #'second)
     (charms:write-string-at-point
       atk-win (format nil "~aに~dのダメージを与えた" (unit-name def-unit) dmg) 1 msg-y)
     (charms:get-char atk-win)
-    (decf (unit-hp def-unit) dmg)))
+    (decf (unit-hp def-unit) dmg)
+    (min 20 dmg))) ;;経験値用
 
 ;;命中しなかったメッセージ
 (defun miss-msg (atk-win)
@@ -556,7 +644,7 @@ CL-USER 10 > (minimum '((a 1) (b -1) (c -2)) #'< #'second)
 
 ;;攻撃処理
 (defun attack! (atk-unit def-unit cells atk-type atk-win)
-  (let* ((a-skill (unit-skill atk-unit))
+  (let* ((a-skill (unit-skill atk-unit)) (kari-exp 0)
          (a-agi (unit-agi atk-unit)) (d-agi (unit-agi def-unit))
          (a-weapon (unit-weapondesc atk-unit))
          (a-w-dmg (weapondesc-damage a-weapon)) (a-w-hit (weapondesc-hit a-weapon))
@@ -578,7 +666,7 @@ CL-USER 10 > (minimum '((a 1) (b -1) (c -2)) #'< #'second)
     (charms:get-char atk-win)
     ;;命中したらダメージ
    (if (> hit? (random 100))
-       (give-damage atk-unit def-unit a-w-dmg a-w-cri atk-win)
+       (setf kari-exp (give-damage atk-unit def-unit a-w-dmg a-w-cri atk-win))
        (miss-msg atk-win))
    ;;反撃
    (when (and (> (unit-hp def-unit) 0) (= atk-type +atk_normal+)
@@ -588,30 +676,43 @@ CL-USER 10 > (minimum '((a 1) (b -1) (c -2)) #'< #'second)
    (when (and (> a-speed d-speed) (= atk-type +atk_normal+)
               (> (unit-hp def-unit) 0) (> (unit-hp atk-unit) 0))
      (attack! atk-unit def-unit cells +atk_re+ atk-win))
-   ;;死亡判定
+   ;;死亡判定&経験値取得
    (when (= atk-type +atk_normal+)
      (cond
-       ((>= 0 (unit-hp def-unit))
+       ((>= 0 (unit-hp def-unit)) ;;相手を倒した
         (when (= (unit-rank def-unit) +leader+)
           (setf *game-over?* t))
-        (setf (unit-alive? def-unit) nil)
+	(if (= (unit-rank def-unit) +boss+) ;;bossだったら+10経験値
+	    (incf (unit-exp atk-unit) (+ 10 (jobdesc-give_exp (unit-jobdesc def-unit))))
+	    (incf (unit-exp atk-unit) (jobdesc-give_exp (unit-jobdesc def-unit))))
+        (setf (unit-alive? def-unit) nil) ;;死亡
         (dead-msg def-unit atk-unit atk-win))
        ((>= 0 (unit-hp atk-unit))
         (when (= (unit-rank atk-unit) +leader+)
           (setf *game-over?* t))
         (setf (unit-alive? atk-unit) nil)
-        (dead-msg atk-unit def-unit atk-win))))
+        (dead-msg atk-unit def-unit atk-win))
+       (t ;;敵を倒せなかった(ダメージ与えただけ)
+	(incf (unit-exp atk-unit) kari-exp))))
 
    (charms:refresh-window atk-win)))
 
+;;レベルアップ処理
+(defun lv-up (unit unit-win)
+  (when (>= (unit-exp unit) 100)
+    (show-lv-up-status unit unit-win) ;;上昇したステータス表示
+    (charms:get-char unit-win)
+    (setf (unit-exp unit) (- (unit-exp unit) 100))))
+
 ;;攻撃先選択フェイズでzキー押したとき
-(defun select-atk-p (game atk-win)
+(defun select-atk-p (game unit-win atk-win)
   (let* ((x (game-cursor_x game)) (y (game-cursor_y game))
          (atk-unit (game-select_unit game))
          (def-unit (get-unit x y (game-units game))))
     (when (and def-unit (aref (game-atk_area game) y x)
                (/= (unit-team atk-unit) (unit-team def-unit)))
       (attack! atk-unit def-unit (game-cells game) +atk_normal+ atk-win)
+      (lv-up atk-unit unit-win) ;;レベルアップ処理
       (setf (game-s_phase game) +select_unit+
             (unit-act? atk-unit) t
             (game-select_unit game) nil)
@@ -952,7 +1053,7 @@ CL-USER 10 > (minimum '((a 1) (b -1) (c -2)) #'< #'second)
     (setf *set-init-pos* nil)))
 
 ;;キー入力
-(defun key-down-event (game window atk-win)
+(defun key-down-event (game window unit-win atk-win)
   (let ((c (charms:get-char window)))
     (cond
       ((eql c #\r)
@@ -980,7 +1081,7 @@ CL-USER 10 > (minimum '((a 1) (b -1) (c -2)) #'< #'second)
          ((= (game-s_phase game) +select_move+)
           (select-move-p game))
          ((= (game-s_phase game) +select_attack+)
-          (select-atk-p game atk-win)
+          (select-atk-p game unit-win atk-win)
           (gamen-clear atk-win))))
       ((eql c (code-char charms/ll:key_up))
        (cursor-move game 0 -1 window))
@@ -1067,9 +1168,9 @@ CL-USER 10 > (minimum '((a 1) (b -1) (c -2)) #'< #'second)
      (loop named hello-world
            while *game-play*
 
-           with unit-win = (charms:make-window 34 14 0 (+ 2 *map-h*))
+           with unit-win = (charms:make-window 34 15 0 (+ 2 *map-h*))
            with atk-win = (charms:make-window 36 8 0 (+ 2 *map-h*))
-           with window2 = (charms:make-window 18 5 35 (+ 2 *map-h*))
+           with window2 = (charms:make-window 18 5 35 (+ 2 *map-h*)) ;;地形
            with mes-win = (charms:make-window 24 6 35 (+ 6 (+ 2 *map-h*)))
            do
             (cond
@@ -1103,7 +1204,7 @@ CL-USER 10 > (minimum '((a 1) (b -1) (c -2)) #'< #'second)
                 (gamen-refresh window window2 unit-win mes-win)
                 ;;キー入力
                 (when (= (game-turn game) +p_turn+)
-                  (key-down-event game window atk-win))
+                  (key-down-event game window unit-win atk-win))
                 ;;ステージクリアチェック
                 (check-stage-clear game)
                 ;;ターンチェンジチェック
