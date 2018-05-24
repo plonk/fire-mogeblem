@@ -1,4 +1,4 @@
-;;TODO レベルによって敵のステータス変化
+;;TODO ステージ３〜５の敵ユニット作る ステージ終了ごとにセーブしたい
 
 (ql:quickload '(cl-charms bordeaux-threads alexandria defenum))
 
@@ -12,6 +12,7 @@
        (charms/ll:endwin)))
 
 (load "define.lisp")
+(load "map-data.lisp")
 
 ;;-------------A-star--------------------------------------------------------------------
 (defstruct node
@@ -99,25 +100,38 @@ CL-USER 10 > (minimum '((a 1) (b -1) (c -2)) #'< #'second)
 
 
 ;;初期位置選択
-
-
-;;ユニットのデータ作成
-(defun make-unit-data (unit-c x y)
-  (let* ((data (cdr (assoc unit-c *units-data*))))
-    (apply #'make-unit
-	   (append (mapcan #'list
-			   '(:name :job :hp :maxhp :str :skill
-			     :w_lv :agi :luck :def :move :team :weapon :rank)
-			   data)
-		   (list :unit-num unit-c :x x :y y)))))
-
 ;;プレイヤーのマップ初期位置設定
 (defun set-start-pos-player (c x y game)
   (let* ((num (- (char-code c) 97))
 	 (unit (aref (game-player_units game) num)))
     (setf (unit-x unit) x
 	  (unit-y unit) y)))
- 
+
+
+
+
+;;レベルによるステータス補正
+(defun lv-status (status-l hp+ st+)
+  (loop for i from 2 to 10
+     do (case i
+	  ((2 3 10) ;;hp maxhp give-exp
+ 	   (incf (nth i status-l) hp+))
+	  ((4 5 6 7 9) ;; str skill w_lv agi def
+	   (incf (nth i status-l) st+))))
+  status-l)
+
+;;ユニットのデータ作成
+;;ステージ数=敵のレベル
+(defun make-unit-data (unit-c x y lv)
+  (let* ((status-l (copy-seq (cdr (assoc unit-c *units-data*))))
+	 (hp+ (1- lv)) (st+ (floor lv 2))
+	 (data (lv-status status-l hp+ st+)))
+    (apply #'make-unit
+	   (append (mapcan #'list
+			   '(:name :job :hp :maxhp :str :skill
+			     :w_lv :agi :luck :def :give_exp :move :team :weapon :rank)
+			   data)
+		   (list :unit-num unit-c :x x :y y)))))
 
 ;;地形データと全ユニットデータ作成
 (defun make-cells-and-units (game map map-no-chara)
@@ -134,7 +148,7 @@ CL-USER 10 > (minimum '((a 1) (b -1) (c -2)) #'< #'second)
 	    ;; (set-start-pos-player c x y game))
 	    (t ;;敵ユニット
 	     (setf (aref cells y x) (aref map-no-chara (+ (* *map-w* y) x)))
-	     (push (make-unit-data c x y) (game-units_l game)))))))
+	     (push (make-unit-data c x y (game-stage game)) (game-units_l game)))))))
     ;;敵ユニットと味方ユニット合体
     ;;(setf units-list (append units-list (coerce (player-units game) 'list)))
     (setf units (make-array (length (game-units_l game))
@@ -149,7 +163,7 @@ CL-USER 10 > (minimum '((a 1) (b -1) (c -2)) #'< #'second)
 		     (= +enemy+ (unit-team u))))
 	     (game-units game)))
 
-
+;;色変更できるかチェック
 (defun start-color ()
   (when (eql (charms/ll:has-colors) charms/ll:false)
     (error "Your terminal does not support color."))
@@ -244,6 +258,7 @@ CL-USER 10 > (minimum '((a 1) (b -1) (c -2)) #'< #'second)
                 (unit-alive? unit))
            (return-from get-unit unit))))
 
+;;うまいことまとめたい
 ;;lvup = ステータス上昇率 (HP 力 技 武器 速さ 運 守備 魔防)
 ;;レベルアップしたときの上昇したステータス表示
 (defun show-lv-up-status (unit window) 
@@ -408,61 +423,65 @@ CL-USER 10 > (minimum '((a 1) (b -1) (c -2)) #'< #'second)
 ;;初期位置きめるときの地形描画
 (defun show-set-pos (game window window2 unit-win mes-win)
   (clear-windows window window2 unit-win mes-win)
-  (loop for y from 0 below *map-h* do
-       (loop for x from 0 below *map-w* do
-	    (let* ((cell (aref (game-cells game) y x)) (unit (get-unit x y (game-units game)))
-		   (color (get-cell-color cell nil))
-		   (aa (celldesc-aa (aref *celldescs* cell))))
-	      (when (and unit (unit-alive? unit))
-		(if (= (unit-team unit) +ally+)
-		    (setf color +black/player-b+)
-		    (setf color +black/red+))
-		(setf aa (jobdesc-aa (unit-jobdesc unit))))
-	      (when (aref (game-init_pos_area game) y x)
-		(setf color +black/yellow+))
-	      (when (and (= (game-cursor_x game) x)
-			 (= (game-cursor_y game) y))
-		(setf color +black/white+)
-		(show-cell-data cell window2)
+  (loop for y from 0 below *map-h*
+     do (loop for x from 0 below *map-w*
+	   do (let* ((cell (aref (game-cells game) y x)) (unit (get-unit x y (game-units game)))
+		     (color (get-cell-color cell nil))
+		     (aa (celldesc-aa (aref *celldescs* cell))))
 		(when (and unit (unit-alive? unit))
-		  (show-unit-data unit unit-win)))
-	      (with-colors (window color)
-		(charms:write-string-at-point
-		 window aa (+ (* x 2) 1) (1+ y))))))
+		  (if (= (unit-team unit) +ally+)
+		      (setf color +black/player-b+)
+		      (setf color +black/red+))
+		  (setf aa (jobdesc-aa (unit-jobdesc unit))))
+		(when (aref (game-init_pos_area game) y x)
+		  (setf color +black/yellow+))
+		(when (and (= (game-cursor_x game) x)
+			   (= (game-cursor_y game) y))
+		  (setf color +black/white+)
+		  (show-cell-data cell window2)
+		  (when (and unit (unit-alive? unit))
+		    (show-unit-data unit unit-win)))
+		(with-colors (window color)
+		  (charms:write-string-at-point
+		   window aa (+ (* x 2) 1) (1+ y))))))
   (charms:write-string-at-point
     mes-win
-    "配置する場所を選んでください"
+    (format nil "配置する場所を選んでください~%(黄色ぽいとこ)")
     1 1)
   (draw-windows-box window window2 unit-win mes-win)
+  (charms:write-string-at-point
+   window
+   (format nil "ステージ~d" (game-stage game))
+   12 0)
   (refresh-windows window window2 unit-win mes-win))
   
 ;;地形とユニット描画
 (defun show-cell-unit (game window window2 unit-win)
-  (loop for y from 0 below *map-h* do
-       (loop for x from 0 below *map-w* do
-        (let ((cell (aref (game-cells game) y x)) (unit (get-unit x y (game-units game)))
-              (color +dark_green/green+) (aa nil))
-           (if (and unit (unit-alive? unit))
-               (progn
-                 (if (= (unit-team unit) +ally+)
-                     (setf color +black/player-b+)
-                     (setf color +black/red+))
-                 (setf aa (jobdesc-aa (unit-jobdesc unit))))
-               (let ((can-move (aref (game-move_area game) y x)))
-                 (setf color (get-cell-color cell can-move))
-                 (setf aa (celldesc-aa (aref *celldescs* cell)))))
-           (when (aref (game-atk_area game) y x)
-             (setf color +black/atk-b+))
-           (when (and (= (game-cursor_x game) x)
-                      (= (game-cursor_y game) y))
-               (setf color +black/white+)
-               (show-cell-data cell window2)
-               (when (and unit (unit-alive? unit))
-                 (show-unit-data unit unit-win)))
+  (loop for y from 0 below *map-h*
+     do (loop for x from 0 below *map-w*
+	   do (let ((cell (aref (game-cells game) y x)) (unit (get-unit x y (game-units game)))
+		    (color +dark_green/green+) (aa nil))
+		(if (and unit (unit-alive? unit))
+		    (progn
+		      (if (= (unit-team unit) +ally+)
+			  (setf color +black/player-b+)
+			  (setf color +black/red+))
+		      (setf aa (jobdesc-aa (unit-jobdesc unit))))
+		    (let ((can-move (aref (game-move_area game) y x)))
+		      (setf color (get-cell-color cell can-move))
+		      (setf aa (celldesc-aa (aref *celldescs* cell)))))
+		(when (aref (game-atk_area game) y x)
+		  (setf color +black/atk-b+))
+		(when (and (= (game-cursor_x game) x)
+			   (= (game-cursor_y game) y))
+		  (setf color +black/white+)
+		  (show-cell-data cell window2)
+		  (when (and unit (unit-alive? unit))
+		    (show-unit-data unit unit-win)))
 
-           (with-colors (window color)
-            (charms:write-string-at-point
-               window aa (+ (* x 2) 1) (1+ y)))))))
+		(with-colors (window color)
+		  (charms:write-string-at-point
+		  window aa (+ (* x 2) 1) (1+ y)))))))
 
 ;;敵移動中描画
 ;;地形とユニット描画
@@ -679,15 +698,15 @@ CL-USER 10 > (minimum '((a 1) (b -1) (c -2)) #'< #'second)
    ;;死亡判定&経験値取得
    (when (= atk-type +atk_normal+)
      (cond
-       ((>= 0 (unit-hp def-unit)) ;;相手を倒した
+       ((>= 0 (unit-hp def-unit)) ;;def側を倒した
         (when (= (unit-rank def-unit) +leader+)
           (setf *game-over?* t))
 	(if (= (unit-rank def-unit) +boss+) ;;bossだったら+10経験値
-	    (incf (unit-exp atk-unit) (+ 10 (jobdesc-give_exp (unit-jobdesc def-unit))))
-	    (incf (unit-exp atk-unit) (jobdesc-give_exp (unit-jobdesc def-unit))))
+	    (incf (unit-exp atk-unit) (+ 10 (unit-give_exp def-unit)))
+	    (incf (unit-exp atk-unit) (unit-give_exp def-unit)))
         (setf (unit-alive? def-unit) nil) ;;死亡
         (dead-msg def-unit atk-unit atk-win))
-       ((>= 0 (unit-hp atk-unit))
+       ((>= 0 (unit-hp atk-unit)) ;;atk側が倒された
         (when (= (unit-rank atk-unit) +leader+)
           (setf *game-over?* t))
         (setf (unit-alive? atk-unit) nil)
@@ -993,8 +1012,10 @@ CL-USER 10 > (minimum '((a 1) (b -1) (c -2)) #'< #'second)
    (let ((c (charms:get-char c-win)))
 	 ;;(len (length (game-player_units game))))
      (cond
-       ((eql c #\z)
+       ((eql c #\z) ;;決定
 	(aref (game-player_units game) cursor))
+       ((eql c #\q) ;;ゲーム終了
+       nil)
        ((eql c (code-char charms/ll:key_up))
 	(show-set-units game c-win (1- cursor) mes-win))
        ((eql c (code-char charms/ll:key_down))
@@ -1025,6 +1046,8 @@ CL-USER 10 > (minimum '((a 1) (b -1) (c -2)) #'< #'second)
 			   :test #'equal :key #'(lambda (x) (unit-name x)))))
 	   ;;おけなかったらループ
 	   (set-unit-map unit game window window2 unit-win mes-win)))
+      ((eql c #\q)
+       (setf *game-play* nil))
       ((eql c (code-char charms/ll:key_up))
        (cursor-move game 0 -1 window)
        (set-unit-map unit game window window2 unit-win mes-win))
@@ -1044,12 +1067,15 @@ CL-USER 10 > (minimum '((a 1) (b -1) (c -2)) #'< #'second)
   (let ((c-win (charms:make-window 20 10 0 (+ 2 *map-h*)))
         (num (min 7 (length (game-player_units game)))) ;;初期配置数
 	(unit nil))
-    (charms/ll:keypad (charms::window-pointer c-win) 1)
-    (loop for i from 0 below num 
+    (charms/ll:keypad (charms::window-pointer c-win) 1) ;;カーソルキー使えるようにする
+    (loop for i from 0 below num
+	 while *game-play*
        do
-	 (show-set-pos game window window2 unit-win mes-win)
+	 (show-set-pos game window window2 unit-win mes-win) 
 	 (setf unit (show-set-units game c-win 0 mes-win)) ;;配置するユニットを取り出す
-	 (set-unit-map unit game window window2 unit-win mes-win))
+	 (if unit ;; qキー押されるとゲーム終了
+	     (set-unit-map unit game window window2 unit-win mes-win)
+	     (setf *game-play* nil)))
     (setf *set-init-pos* nil)))
 
 ;;キー入力
@@ -1095,16 +1121,17 @@ CL-USER 10 > (minimum '((a 1) (b -1) (c -2)) #'< #'second)
 ;;ターンチェンジ
 (defun check-turn-change (game window window2 unit-win atk-win mes-win)
   (cond
+    ;;プレイヤーうニットがすべて行動済みならターンチェンジ
     ((and (= (game-turn game) +p_turn+)
           (turn-end? (game-units game) +ally+))
-     (init-act (game-units game) +ally+)
-     (setf (game-turn game) +e_turn+)
-     (cell-heal (game-units game) (game-cells game)))
+     (init-act (game-units game) +ally+) ;;未行動状態に
+     (setf (game-turn game) +e_turn+) ;;ターンチェンジ
+     (cell-heal (game-units game) (game-cells game))) ;;地形による回復
     ((= (game-turn game) +e_turn+)
      (gamen-clear window2 unit-win mes-win)
      (gamen-refresh window2 unit-win mes-win)
-     (enemy-act (game-units game) (game-cells game) atk-win window)
-     (setf (game-turn game) +p_turn+)
+     (enemy-act (game-units game) (game-cells game) atk-win window) ;;全敵の行動
+     (setf (game-turn game) +p_turn+) ;;敵がすべて行動したのでターンチェンジ
      (cell-heal (game-units game) (game-cells game)))))
 
 ;;クリアチェック
