@@ -160,7 +160,8 @@ CL-USER 10 > (minimum '((a 1) (b -1) (c -2)) #'< #'second)
   (unless (= 256 charms/ll:*COLORS*)
     (when (eql (charms/ll:can-change-color) charms/ll:false)
       (error "Your terminal does not support color.")))
-  (charms/ll:use-default-colors))
+  (charms/ll:use-default-colors)
+  (charms/ll:curs-set 0))
 
 ;;カラーペアを作る
 (defmacro define-color-pair ((name pair) foreground background)
