@@ -1,4 +1,4 @@
-;;TODO ステージ３〜５の敵ユニット作る ステージ終了ごとにセーブしたい
+;;TODO ステージ終了ごとにセーブしたい ロードするときの文字列入力を作る
 
 (ql:quickload '(cl-charms bordeaux-threads alexandria defenum))
 
@@ -13,6 +13,7 @@
 
 (load "define.lisp")
 (load "map-data.lisp")
+(load "save.lisp")
 
 ;;-------------A-star--------------------------------------------------------------------
 (defstruct node
@@ -928,12 +929,15 @@ CL-USER 10 > (minimum '((a 1) (b -1) (c -2)) #'< #'second)
 (defun game-opening-message (game window)
   (charms:write-string-at-point window "ファイアーモゲブレム" 15 2)
   (charms:write-string-at-point window "s:スタート" 15 4)
+  (charms:write-string-at-point window "w:セーブ" 15 6)
   (charms:write-string-at-point window "q:終わる" 15 5)
   (gamen-refresh window)
   (let ((c (charms:get-char window)))
     (cond
       ((eql c #\q)
        (setf *game-play* nil))
+      ((eql c #\w)
+       (save-suru game))
       ((eql c #\s)
        (setf *game-opening* nil)
        (init-game game)))))
@@ -1217,9 +1221,10 @@ CL-USER 10 > (minimum '((a 1) (b -1) (c -2)) #'< #'second)
 	       ;;地形とユニットセット
 	       (let ((mapu-e (nth (game-stage game) *all-enemy-map*))
 		     (mapu-no (nth (game-stage game) *all-no-unit-map*)))
-		 (make-cells-and-units game mapu-e mapu-no)
-		 (get-init-pos-area game)
-		 (set-units-pos game window window2 unit-win mes-win)))
+		 (make-cells-and-units game mapu-e mapu-no) ;;マップと敵データ作成
+		 (get-init-pos-area game) ;;初期配置可能な場所取得
+		 (set-units-pos game window window2 unit-win mes-win) ;;ユニット配置
+		 (init-act (game-units game) +ally+))) ;;未行動状態に
               (t ;;ゲーム進行中
                 (gamen-clear window window2 unit-win mes-win)
                 ;;描画
