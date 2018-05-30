@@ -6,6 +6,8 @@
 (defparameter *stage-clear* nil)
 (defparameter *game-clear* nil)
 (defparameter *set-init-pos* t)
+(defparameter *load-units-data* nil)
+(defparameter *load-stage* 0)
 
 (defstruct game
   (cursor_x 0)

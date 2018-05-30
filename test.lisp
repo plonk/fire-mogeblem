@@ -1,6 +1,6 @@
 ;;TODO ステージ終了ごとにセーブしたい ロードするときの文字列入力を作る
 
-(ql:quickload '(cl-charms bordeaux-threads alexandria defenum))
+(ql:quickload '(cl-charms bordeaux-threads alexandria defenum cffi))
 
 (setf sb-ext:*invoke-debugger-hook*
       (lambda (condition hook)
@@ -927,9 +927,11 @@ CL-USER 10 > (minimum '((a 1) (b -1) (c -2)) #'< #'second)
 
 ;;game opening
 (defun game-opening-message (game window)
+  (clear-windows window)
   (charms:write-string-at-point window "ファイアーモゲブレム" 15 2)
   (charms:write-string-at-point window "s:スタート" 15 4)
   (charms:write-string-at-point window "w:セーブ" 15 6)
+  (charms:write-string-at-point window "l:ロード" 15 7)
   (charms:write-string-at-point window "q:終わる" 15 5)
   (gamen-refresh window)
   (let ((c (charms:get-char window)))
@@ -938,6 +940,10 @@ CL-USER 10 > (minimum '((a 1) (b -1) (c -2)) #'< #'second)
        (setf *game-play* nil))
       ((eql c #\w)
        (save-suru game))
+      ((eql c #\l)
+       (clear-windows window)
+       (refresh-windows window)
+       (get-loadstr game))
       ((eql c #\s)
        (setf *game-opening* nil)
        (init-game game)))))
@@ -1166,16 +1172,41 @@ CL-USER 10 > (minimum '((a 1) (b -1) (c -2)) #'< #'second)
      do
        (setf (unit-hp u) (unit-maxhp u))))
 
+;;セーブするか次に行くか
+(defun save-or-next-stage (game save-f)
+  (let ((window (charms:make-window 30 6 5 5)))
+    (charms:write-string-at-point
+     window
+     "n:次のステージへ" 1 1)
+    (charms:write-string-at-point
+     window
+     "q:終わる" 1 2)
+    (when save-f
+      (charms:write-string-at-point
+       window
+       "s:セーブ" 1 3))
+    (refresh-windows window)
+    (let ((c (charms:get-char window)))
+      (charms:destroy-window window)
+      (cond
+	((eql c #\n)
+	 (setf *set-init-pos* t ;;ステージ開始初期位置設定フラグ
+	       *stage-clear* nil)) ;;ステージクリアフラグ消す
+	((and save-f (eql c #\s))
+	 (save-suru game)
+	 (save-or-next-stage game nil))
+	((eql c #\q)
+	 (setf *game-play* nil))))))
+
 ;;ステージデータ・セット
 (defun set-stage (game)
-  (setf *stage-clear* nil ;;ステージクリアフラグ消す
-	(game-player_units game) (get-alive-ally-units game) ;;生き残った味方ユニット
+  (setf (game-player_units game) (get-alive-ally-units game) ;;生き残った味方ユニット
 	(game-units game) nil
 	(game-units_l game) nil)
   (init-move-area (game-init_pos_area game)) ;;初期位置初期化
   (heal-all-units game) ;;HP回復
-  (setf *set-init-pos* t) ;;ステージ開始初期位置設定フラグ
-  (incf (game-stage game))) ;;次のステージ
+  (incf (game-stage game)) ;;次のステージ
+  (save-or-next-stage game t))
   
 
 (defun hello-world ()
@@ -1208,6 +1239,7 @@ CL-USER 10 > (minimum '((a 1) (b -1) (c -2)) #'< #'second)
               (*game-opening* ;;オープニング
 	       (game-opening-message game window))
 	      (*stage-clear*
+	       (erase-window window window2 unit-win mes-win)
 	       (set-stage game))
               (*game-clear* ;;ゲームクリア
                 (gamen-clear window window2 unit-win atk-win mes-win)
