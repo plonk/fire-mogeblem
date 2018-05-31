@@ -80,20 +80,20 @@
      "復活の呪文を入力してください" 1 1)
     (charms:move-cursor window 1 2)
     (let ((loadstr (my-getstr window)))
-    (if (load loadstr :if-does-not-exist nil)
-	(progn (charms:write-string-at-point
-		window
-		"ロードしました" 1 3)
-	       (load-suru game)
-	       (delete-file loadstr)
-	       (setf *game-opening* nil
-		     *set-init-pos* t))
-	(charms:write-string-at-point
-	 window
-	 "復活の呪文が間違ってます！！" 1 3))
-    (refresh-windows window)
-    (charms:disable-echoing)
-    (charms/ll:curs-set 0)
-    (charms:get-char window)
-    (charms:destroy-window window)))
+      (if (load-file loadstr)
+	  (progn (charms:write-string-at-point
+		  window
+		  "ロードしました" 1 3)
+		 (load-suru game)
+		 (delete-file loadstr)
+		 (setf *game-opening* nil
+		       *set-init-pos* t))
+	  (charms:write-string-at-point
+	   window
+	   "復活の呪文が間違ってます！！" 1 3))
+      (refresh-windows window)
+      (charms:disable-echoing)
+      (charms/ll:curs-set 0)
+      (charms:get-char window)
+      (charms:destroy-window window))))
 

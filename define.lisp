@@ -235,19 +235,19 @@
         (list (make-jobdesc :name "ロード" :aa "君" :give_exp 0
                             :movecost #(-1 1 2 4 -1 1 2 2))
               (make-jobdesc :name "パラディン" :aa "聖" :give_exp 44
-                :movecost #(-1 1 3 6 -1 1 2 2))
+			    :movecost #(-1 1 3 6 -1 1 2 2))
               (make-jobdesc :name "Sナイト" :aa "騎" :give_exp 30
-                :movecost #(-1 1 3 -1 -1 1 2 2))
+			    :movecost #(-1 1 3 -1 -1 1 2 2))
               (make-jobdesc :name "Aナイト" :aa "重" :give_exp 32
-                :movecost #(-1 1 3 -1 -1 1 2 2))
+			    :movecost #(-1 1 3 -1 -1 1 2 2))
               (make-jobdesc :name "アーチャー" :aa "射" :give_exp 28
-                :movecost #(-1 1 3 -1 -1 1 2 2))
+			    :movecost #(-1 1 3 -1 -1 1 2 2))
               (make-jobdesc :name "Pナイト" :aa "天" :give_exp 36
-                :movecost #(1 1 1 1 1 1 1 1))
+			    :movecost #(1 1 1 1 1 1 1 1))
               (make-jobdesc :name "海賊" :aa "海" :give_exp 24
-                :movecost #(2 1 2 4 -1 1 2 2))
+			    :movecost #(2 1 2 4 -1 1 2 2))
               (make-jobdesc :name "ハンター" :aa "狩" :give_exp 26
-                :movecost #(-1 1 2 3 -1 1 2 2))
+			    :movecost #(-1 1 2 3 -1 1 2 2))
               (make-jobdesc :name "盗賊" :aa "盗" :give_exp 100 ;;40
 			    :movecost #(-1 1 2 4 -1 1 2 2))
 	      (make-jobdesc :name "山賊" :aa "さ" :give_exp 24
@@ -288,7 +288,7 @@
                          :str 50 :skill 3 :w_lv 5 :agi 7 :luck 7 :def 7
 			 :lvup '(90 50 40 30 50 70 20 0)
                          :move 7 :weapon +w_rapier+ :team +ally+ :rank +leader+)
-              (make-unit :name "ジェイガン" :job +job_paradin+ :hp 20 :maxhp 20
+              (make-unit :name "ヨテガン" :job +job_paradin+ :hp 20 :maxhp 20
 			 :str 7 :skill 10 :w_lv 10 :agi 8 :luck 1 :def 9
 			 :lvup '(10 10 10 0 10 0 0 0)
 			 :move 10 :weapon +w_iron_sword+ :team +ally+ :rank +common+)
