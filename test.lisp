@@ -1198,7 +1198,7 @@ CL-USER 10 > (minimum '((a 1) (b -1) (c -2)) #'< #'second)
   (charms:with-curses ()
     (charms/ll:initscr)
     (charms:disable-echoing)
-    (charms:enable-raw-input)
+    (charms:enable-raw-input :interpret-control-characters t)
     (charms/ll:curs-set 0) ;;カーソル消す
     (start-color)
     (init-color)
