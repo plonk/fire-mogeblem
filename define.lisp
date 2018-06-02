@@ -6,6 +6,8 @@
 (defparameter *stage-clear* nil)
 (defparameter *game-clear* nil)
 (defparameter *set-init-pos* t)
+(defparameter *load-units-data* nil)
+(defparameter *load-stage* 0)
 
 (defstruct game
   (cursor_x 0)
@@ -29,96 +31,7 @@
   (mes nil)
   (cell nil))
 
-(defparameter *map1-chara* ;;キャラ配置済み
-  (make-array (* *map-h* *map-w*) :initial-contents
-    '(0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
-      0 0 0 0 k k k 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 2 0 0 0 0
-      0 0 0 1 h 1 2 4 0 0 0 0 0 0 0 0 0 0 0 5 5 5 e 1 2 5 2 1 0 0
-      0 0 1 1 1 1 1 4 4 0 0 0 0 0 0 6 1 1 1 1 1 1 1 1 f 1 5 1 1 0
-      0 1 1 1 7 1 k 4 4 4 0 0 0 0 1 1 1 1 1 2 1 1 1 1 1 1 1 1 1 0
-      0 1 k 1 1 1 2 4 4 4 4 4 4 1 k 1 1 1 1 1 0 0 0 b a g 1 1 1 0
-      0 1 1 1 k k 1 2 4 4 4 2 1 1 1 2 1 1 1 0 0 0 0 1 6 1 1 1 1 0
-      0 1 1 5 1 1 i 1 3 3 2 1 1 1 1 1 1 0 0 0 0 1 c d 1 1 1 1 0 0
-      0 1 1 1 1 1 1 3 1 1 1 k 1 k 1 2 2 0 0 0 1 1 1 1 1 1 1 0 0 0
-      0 0 1 1 1 k 1 1 6 1 1 1 1 1 2 2 0 0 0 2 1 j 1 1 2 1 0 0 0 0
-      0 0 0 1 1 1 1 1 1 1 1 2 1 1 0 0 0 0 0 0 1 1 2 1 1 1 0 0 0 0
-      0 0 0 0 1 5 5 0 0 0 0 1 1 0 0 0 0 0 0 0 0 0 0 0 2 2 0 0 0 0
-      0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0)))
 
-(defparameter *map1-enemy* ;;敵キャラのみ配置済み
-  (make-array (* *map-h* *map-w*) :initial-contents
-    '(0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
-      0 0 0 0 k k k 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 2 0 0 0 0
-      0 0 0 1 h 1 2 4 0 0 0 0 0 0 0 0 0 0 0 5 5 5 1 1 2 5 2 1 0 0
-      0 0 1 1 1 1 1 4 4 0 0 0 0 0 0 6 1 1 1 1 1 1 1 1 1 7 5 1 1 0
-      0 1 1 1 7 1 k 4 4 4 0 0 0 0 1 1 1 1 1 2 1 1 1 1 1 1 1 1 1 0
-      0 1 k 1 1 1 2 4 4 4 4 4 4 1 k 1 1 1 1 1 0 0 0 1 1 1 1 1 1 0
-      0 1 1 1 k k 1 2 4 4 4 2 1 1 1 2 1 1 1 0 0 0 0 1 6 1 1 1 1 0
-      0 1 1 5 1 1 i 1 3 3 2 1 1 1 1 1 1 0 0 0 0 1 1 1 1 1 1 1 0 0
-      0 1 1 1 1 1 1 3 1 1 1 k 1 k 1 2 2 0 0 0 1 1 1 1 1 1 1 0 0 0
-      0 0 1 1 1 k 1 1 6 1 1 1 1 1 2 2 0 0 0 2 1 j 1 1 2 1 0 0 0 0
-      0 0 0 1 1 1 1 1 1 1 1 2 1 1 0 0 0 0 0 0 1 1 2 1 1 1 0 0 0 0
-      0 0 0 0 1 5 5 0 0 0 0 1 1 0 0 0 0 0 0 0 0 0 0 0 2 2 0 0 0 0
-      0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0)))
-
-(defparameter *map1-no-unit* ;;キャラなし
-  (make-array (* *map-h* *map-w*) :initial-contents
-       '(0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
-         0 0 0 0 1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 2 0 0 0 0
-         0 0 0 1 1 1 2 4 0 0 0 0 0 0 0 0 0 0 0 5 5 5 1 1 2 5 2 1 0 0
-         0 0 1 1 1 1 1 4 4 0 0 0 0 0 0 6 1 1 1 1 1 1 1 1 1 7 5 1 1 0
-         0 1 1 1 7 1 1 4 4 4 0 0 0 0 1 1 1 1 1 2 1 1 1 1 1 1 1 1 1 0
-         0 1 1 1 1 1 2 4 4 4 4 4 4 1 1 1 1 1 1 1 0 0 0 1 1 1 1 1 1 0
-         0 1 1 1 1 1 1 2 4 4 4 2 1 1 1 2 1 1 1 0 0 0 0 1 6 1 1 1 1 0
-         0 1 1 5 1 1 1 1 3 3 2 1 1 1 1 1 1 0 0 0 0 1 1 1 1 1 1 1 0 0
-         0 1 1 1 1 1 1 3 1 1 1 1 1 1 1 2 2 0 0 0 1 1 1 1 1 1 1 0 0 0
-         0 0 1 1 1 1 1 1 6 1 1 1 1 1 2 2 0 0 0 2 1 5 1 1 2 1 0 0 0 0
-         0 0 0 1 1 1 1 1 1 1 1 2 1 1 0 0 0 0 0 0 1 1 2 1 1 1 0 0 0 0
-         0 0 0 0 1 5 5 0 0 0 0 1 1 0 0 0 0 0 0 0 0 0 0 0 2 2 0 0 0 0
-         0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0)))
-
-(defparameter *map2-enemy* ;;敵キャラのみ配置済み
-  (make-array (* *map-h* *map-w*) :initial-contents
-	      '(1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 3 3 1 1 1 1 1 1 1 1 1 1 1
-		1 5 1 1 2 2 2 1 1 1 4 1 4 1 1 1 1 1 5 3 3 L 3 3 3 2 1 1 1 1
-		1 1 1 1 2 1 2 2 1 4 4 4 4 1 1 1 1 1 2 L 1 1 1 1 2 1 2 1 1 1
-		1 1 1 1 1 1 1 1 1 4 4 3 3 1 1 1 1 1 1 1 1 1 1 1 1 1 3 1 1 0
-		0 1 1 1 5 1 1 1 1 1 1 1 1 1 1 1 1 L 1 2 1 1 1 1 1 1 1 1 1 0
-		0 1 1 1 1 1 2 1 2 2 2 2 2 1 2 1 1 1 1 i 1 1 2 K K 1 1 1 1 1
-		0 1 1 1 1 1 1 2 2 2 2 2 1 1 1 2 1 1 K 1 i 1 1 1 1 1 M 1 1 0
-		0 1 1 1 1 1 1 1 3 6 2 1 1 1 1 1 1 1 1 1 j 1 1 1 1 1 1 1 1 1
-		0 1 1 1 1 1 1 3 1 1 3 3 2 2 1 2 2 1 L 1 1 1 1 3 L 3 1 1 1 1
-		1 1 1 1 1 1 1 1 2 3 4 4 4 1 2 2 1 1 6 2 1 1 1 1 3 3 3 1 1 1
-		1 1 1 1 1 1 1 3 3 4 4 2 2 2 2 1 1 1 1 4 4 1 2 1 4 4 4 3 3 1
-		1 1 1 1 1 1 1 4 1 1 1 2 2 1 1 1 1 1 3 1 1 1 1 1 2 2 1 1 3 3
-		1 1 1 1 1 1 1 4 1 1 1 1 1 1 1 1 1 1 3 1 1 1 1 1 1 1 1 1 1 1)))
-
-(defparameter *map2-no-unit* ;;キャラなし
-  (make-array (* *map-h* *map-w*) :initial-contents
-	      '(1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 3 3 1 1 1 1 1 1 1 1 1 1 1
-		1 5 1 1 2 2 2 1 1 1 4 1 4 1 1 1 1 1 5 3 3 3 3 3 3 2 1 1 1 1
-		1 1 1 1 2 1 2 2 1 4 4 4 4 1 1 1 1 1 2 1 1 1 1 1 2 1 2 1 1 1
-		1 1 1 1 1 1 1 1 1 4 4 3 3 1 1 1 1 1 1 1 1 1 1 1 1 1 3 1 1 0
-		0 1 1 1 5 1 1 1 1 1 1 1 1 1 1 1 1 6 1 2 1 1 1 1 1 1 1 1 1 0
-		0 1 1 1 1 1 2 1 2 2 2 2 2 1 2 1 1 1 1 1 1 1 2 1 1 1 1 1 1 1
-		0 1 1 1 1 1 1 2 2 2 2 2 1 1 1 2 1 1 1 1 1 1 1 1 1 1 7 1 1 0
-		0 1 1 1 1 1 1 1 3 6 2 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1
-		0 1 1 1 1 1 1 3 1 1 3 3 2 2 1 2 2 1 1 1 1 1 1 3 3 3 1 1 1 1
-		1 1 1 1 1 1 1 1 2 3 4 4 4 1 2 2 1 1 6 2 1 1 1 1 3 3 3 1 1 1
-		1 1 1 1 1 1 1 3 3 4 4 2 2 2 2 1 1 1 1 4 4 1 2 1 4 4 4 3 3 1
-		1 1 1 1 1 1 1 4 1 1 1 2 2 1 1 1 1 1 3 1 1 1 1 1 2 2 1 1 3 3
-		1 1 1 1 1 1 1 4 1 1 1 1 1 1 1 1 1 1 3 1 1 1 1 1 1 1 1 1 1 1)))
-
-;;すべてのマップリスト
-(defparameter *all-enemy-map*
-  (list nil *map1-enemy* *map2-enemy*))
-
-(defparameter *all-no-unit-map*
-  (list nil *map1-no-unit* *map2-no-unit*))
-
-;;ステージごとの初期位置(真ん中) (y x)
-(defparameter *stage-init-pos*
-  '((0 0) (6 24) (10 2)))
 ;;周囲のマス
 (defparameter *ar-cell* '((0 1) (1 1) (1 0) (1 -1) (0 -1) (-1 -1) (-1 0) (-1 1) (0 0)))
 
@@ -233,7 +146,7 @@
 
 ;;ユニットデータ
 (defstruct unit
-  (name nil) (job 0) (hp 0) (maxhp 0) (str 0) (skill 0)
+  (name nil) (job 0) (hp 0) (maxhp 0) (str 0) (skill 0) (give_exp 0)
   (w_lv 0) (agi 0) (luck 0) (def 0) (move 0) (weapon 0) (exp 0) (lv 1)
   (x 0) (y 0) (unit-num 0) (team 0) (alive? t) (act? nil) (rank 0)
   (lvup nil))
@@ -244,40 +157,13 @@
   (x 0)
   (y 0))
 
-;;ジョブ
-(defenum:defenum job
-    (+job_lord+ +job_paradin+ +job_s_knight+ +job_a_knight+ +job_archer+
-     +job_p_knight+ +job_pirate+ +job_hunter+ +job_thief+ +job_bandit+ +job_max+))
 
-;;ジョブデータ配列
-(defparameter *jobdescs*
-  ;;movecost= (海 草原 林 山 高山 町 砦 城)
-  (make-array +job_max+ :initial-contents
-        (list (make-jobdesc :name "ロード" :aa "君" :give_exp 0
-                            :movecost #(-1 1 2 4 -1 1 2 2))
-              (make-jobdesc :name "パラディン" :aa "聖" :give_exp 44
-                :movecost #(-1 1 3 6 -1 1 2 2))
-              (make-jobdesc :name "Sナイト" :aa "騎" :give_exp 30
-                :movecost #(-1 1 3 -1 -1 1 2 2))
-              (make-jobdesc :name "Aナイト" :aa "重" :give_exp 32
-                :movecost #(-1 1 3 -1 -1 1 2 2))
-              (make-jobdesc :name "アーチャー" :aa "射" :give_exp 28
-                :movecost #(-1 1 3 -1 -1 1 2 2))
-              (make-jobdesc :name "Pナイト" :aa "天" :give_exp 36
-                :movecost #(1 1 1 1 1 1 1 1))
-              (make-jobdesc :name "海賊" :aa "海" :give_exp 24
-                :movecost #(2 1 2 4 -1 1 2 2))
-              (make-jobdesc :name "ハンター" :aa "狩" :give_exp 26
-                :movecost #(-1 1 2 3 -1 1 2 2))
-              (make-jobdesc :name "盗賊" :aa "盗" :give_exp 100 ;;40
-			    :movecost #(-1 1 2 4 -1 1 2 2))
-	      (make-jobdesc :name "山賊" :aa "さ" :give_exp 24
-			    :movecost #(-1 1 2 1 2 1 2 2)))))
 
 ;;武器
 (defenum:defenum buki
     (+w_iron_sword+ +w_rapier+ +w_spear+ +w_silver_spear+ +w_hand_spear+
-     +w_bow+ +w_steal_bow+ +w_cross_bow+ +w_ax+ +w_steal_ax+ +w_max+))
+		    +w_bow+ +w_steal_bow+ +w_cross_bow+ +w_ax+ +w_steal_ax+
+		    +w_silver_sword+ +w_max+))
 
 ;;武器データ配列
 (defparameter *weapondescs*
@@ -311,7 +197,11 @@
                     :rangemax 1)
               (make-weapondesc :name "鋼の斧" :damage 9 :weight 9
                     :hit 70 :critical 0 :rangemin 1
-                    :rangemax 1))))
+                    :rangemax 1)
+	      (make-weapondesc :name "銀の剣" :damage 12 :weight 3
+                    :hit 100 :critical 0 :rangemin 1
+                    :rangemax 1)
+	      )))
 
 ;;地形
 (defenum:defenum cell
@@ -333,22 +223,64 @@
 (defenum:defenum team
     (+ally+ +enemy+ +type_max+))
 
-(defparameter *units-data*
-  ;;       name job hp maxhp str skill w_lv agi luck def move weapon rank
-  `((A . ("もげぞう"   ,+job_lord+     18 18 5  3  5  7  7  7  7 ,+ally+ ,+w_rapier+ ,+leader+))
-    (B . ("ジェイガン" ,+job_paradin+  20 20 7 10 10  8  1  9 10 ,+ally+ ,+w_iron_sword+ ,+common+))
-    (C . ("カイン"     ,+job_s_knight+ 18 18 7  5  5  6  3  7  9 ,+ally+ ,+w_spear+ ,+common+))
-    (D . ("アベル"     ,+job_s_knight+ 18 18 6  7  6  7  2  7  9 ,+ally+ ,+w_hand_spear+ ,+common+))
-    (E . ("ドーガ"     ,+job_a_knight+ 18 18 7  3  4  3  1 11  5 ,+ally+ ,+w_iron_sword+ ,+common+))
-    (F . ("ゴードン"   ,+job_archer+   16 16 5  1  5  4  4  6  5 ,+ally+ ,+w_cross_bow+ ,+common+))
-    (G . ("シーダ"     ,+job_p_knight+ 16 16 3  6  7 12  9  7  8 ,+ally+ ,+w_iron_sword+ ,+common+))
-    (H . ("ガザック"   ,+job_pirate+   24 24 7  3  7  8  0  6  6 ,+enemy+ ,+w_steal_ax+ ,+boss+))
-    (I . ("ガルダ兵"   ,+job_hunter+   18 18 6  1  5  5  0  3  6 ,+enemy+ ,+w_bow+ ,+common+))
-    (J . ("ガルダ兵"   ,+job_thief+    16 16 3  1  2  9  0  2  7 ,+enemy+ ,+w_iron_sword+ ,+common+))
-    (K . ("ガルダ兵"   ,+job_pirate+   18 18 5  1  5  6  0  4  6 ,+enemy+ ,+w_ax+ ,+common+))
-    (L . ("ガルダ兵"   ,+job_bandit+   20 20 5  1  5  5  0  3  6 ,+enemy+ ,+w_ax+ ,+common+))
-    (M . ("もび太"     ,+job_bandit+   27 27 8  3  7  8  0  6  6 ,+enemy+ ,+w_steal_ax+ ,+boss+))))
+;;ジョブ
+(defenum:defenum job
+    (+job_lord+ +job_paradin+ +job_s_knight+ +job_a_knight+ +job_archer+
+		+job_p_knight+ +job_pirate+ +job_hunter+ +job_thief+ +job_bandit+
+		+job_d_knight+ +job_shogun+ +job_mercenary+ +job_yusha+ +job_max+))
 
+;;ジョブデータ配列
+(defparameter *jobdescs*
+  ;;movecost= (海 草原 林 山 高山 町 砦 城)
+  (make-array +job_max+ :initial-contents
+        (list (make-jobdesc :name "ロード" :aa "君" :give_exp 0
+                            :movecost #(-1 1 2 4 -1 1 2 2))
+              (make-jobdesc :name "パラディン" :aa "聖" :give_exp 44
+			    :movecost #(-1 1 3 6 -1 1 2 2))
+              (make-jobdesc :name "Sナイト" :aa "騎" :give_exp 30
+			    :movecost #(-1 1 3 -1 -1 1 2 2))
+              (make-jobdesc :name "Aナイト" :aa "重" :give_exp 32
+			    :movecost #(-1 1 3 -1 -1 1 2 2))
+              (make-jobdesc :name "アーチャー" :aa "射" :give_exp 28
+			    :movecost #(-1 1 3 -1 -1 1 2 2))
+              (make-jobdesc :name "Pナイト" :aa "天" :give_exp 36
+			    :movecost #(1 1 1 1 1 1 1 1))
+              (make-jobdesc :name "海賊" :aa "海" :give_exp 24
+			    :movecost #(2 1 2 4 -1 1 2 2))
+              (make-jobdesc :name "ハンター" :aa "狩" :give_exp 26
+			    :movecost #(-1 1 2 3 -1 1 2 2))
+              (make-jobdesc :name "盗賊" :aa "盗" :give_exp 100 ;;40
+			    :movecost #(-1 1 2 4 -1 1 2 2))
+	      (make-jobdesc :name "山賊" :aa "さ" :give_exp 24
+			    :movecost #(-1 1 2 1 2 1 2 2))
+	      (make-jobdesc :name "Dナイト" :aa "竜" :give_exp 44
+			    :movecost #(1 1 1 1 1 1 1 1))
+	      (make-jobdesc :name "将軍" :aa "将" :give_exp 50
+			    :movecost #(-1 1 2 4 -1 1 2 2))
+	      (make-jobdesc :name "傭兵" :aa "傭" :give_exp 50
+			    :movecost #(-1 1 2 3 -1 1 1 2))
+	      (make-jobdesc :name "勇者" :aa "勇" :give_exp 50
+			    :movecost #(-1 1 2 3 -1 1 1 2))
+	      )))
+
+(defparameter *units-data* ;;A~Gも敵データにしてよい
+  ;;       name job hp maxhp str skill w_lv agi luck def give-exp move weapon rank
+  `((A . ("プロピアキャスター" ,+job_pirate+   24 24 7  3  7  8  0  6 24  6 ,+enemy+ ,+w_steal_ax+ ,+boss+)) ;;ステージ１ボス
+    (B . ("もび太"     ,+job_bandit+   27 27 8  3  7  8  0  6 26  6 ,+enemy+ ,+w_steal_ax+ ,+boss+)) ;;ステージ２ボス
+    (C . ("ハツネツA"  ,+job_shogun+   28 28 9  1 3  4  0  14 50  5 ,+enemy+ ,+w_silver_spear+ ,+boss+)) ;;ステージ３ボス
+    (D . ("リスパー"   ,+job_paradin+  27 27 8  7 10 11  0  9 44 10 ,+enemy+ ,+w_rapier+ ,+boss+)) ;;ステージ4ボス
+    (E . ("モーゲ皇帝" ,+job_yusha+    30 30 8 14 10 14  0 10 46  7 ,+enemy+ ,+w_silver_sword+ ,+boss+)) ;;ステージ5ボス
+    (F . ("ゴードン"   ,+job_archer+   16 16 5  1  5  4  4  6 28  5 ,+ally+ ,+w_cross_bow+ ,+common+))
+    (G . ("シーダ"     ,+job_p_knight+ 16 16 3  6  7 12  9  7 36  8 ,+ally+ ,+w_iron_sword+ ,+common+))
+    (H . ("ペカ民兵"   ,+job_hunter+   18 18 6  1  5  5  0  3 26  6 ,+enemy+ ,+w_bow+ ,+common+))
+    (I . ("ペカ民兵"   ,+job_hunter+   18 18 6  1  5  5  0  3 26  6 ,+enemy+ ,+w_bow+ ,+common+))
+    (J . ("ペカ民兵"   ,+job_thief+    16 16 3  1  2  9  0  2 40  7 ,+enemy+ ,+w_iron_sword+ ,+common+))
+    (K . ("ペカ民兵"   ,+job_pirate+   18 18 5  1  5  6  0  4 24  6 ,+enemy+ ,+w_ax+ ,+common+))
+    (L . ("ペカ民兵"   ,+job_bandit+   20 20 5  1  5  5  0  3 26  6 ,+enemy+ ,+w_ax+ ,+common+))
+    (M . ("ペカ民兵"  ,+job_mercenary+ 16 16 4  8  8 10  0  5 28  7 ,+enemy+ ,+w_iron_sword+ ,+common+))
+    (N . ("ペカ民兵"   ,+job_d_knight+ 22 22 9  3 10  6  0 14 44 10 ,+enemy+ ,+w_ax+ ,+common+))
+    (O . ("ペカ民兵"   ,+job_s_knight+ 16 16 5  2  8  6  0  7 30  9 ,+enemy+ ,+w_spear+ ,+common+))
+    (P . ("ペカ民兵"   ,+job_a_knight+ 16 16 5  1  7  3  0 11 32  5 ,+enemy+ ,+w_iron_sword+ ,+common+))))
 
 ;;lvup = ステータス上昇率 (HP 力 技 武器 速さ 運 守備 魔防)
 (defparameter *defo-player-units*
@@ -357,7 +289,7 @@
                          :str 50 :skill 3 :w_lv 5 :agi 7 :luck 7 :def 7
 			 :lvup '(90 50 40 30 50 70 20 0)
                          :move 7 :weapon +w_rapier+ :team +ally+ :rank +leader+)
-              (make-unit :name "ジェイガン" :job +job_paradin+ :hp 20 :maxhp 20
+              (make-unit :name "ヨテガン" :job +job_paradin+ :hp 20 :maxhp 20
 			 :str 7 :skill 10 :w_lv 10 :agi 8 :luck 1 :def 9
 			 :lvup '(10 10 10 0 10 0 0 0)
 			 :move 10 :weapon +w_iron_sword+ :team +ally+ :rank +common+)
