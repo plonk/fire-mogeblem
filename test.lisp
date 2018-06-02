@@ -447,7 +447,7 @@ CL-USER 10 > (minimum '((a 1) (b -1) (c -2)) #'< #'second)
 		   map-win aa (+ (* x 2) 1) (1+ y))))))
   (charms:write-string-at-point
     mes-win
-    (format nil "配置する場所を選んでください~%(黄色ぽいとこ)")
+    (format nil "配置する場所を選んでく~% ださい~% (黄色ぽいとこ)")
     1 1)
   (draw-windows-box map-win cell-win unit-win mes-win)
   (charms:write-string-at-point
@@ -462,27 +462,30 @@ CL-USER 10 > (minimum '((a 1) (b -1) (c -2)) #'< #'second)
      do (loop for x from 0 below *map-w*
 	   do (let ((cell (aref (game-cells game) y x)) (unit (get-unit x y (game-units game)))
 		    (color +dark_green/green+) (aa nil))
-		(if (and unit (unit-alive? unit))
+		(if (and unit (unit-alive? unit)) ;;生きてるユニットがいる
 		    (progn
 		      (if (= (unit-team unit) +ally+)
-			  (setf color +black/player-b+)
-			  (setf color +black/red+))
+			  (setf color +black/player-b+) ;;プレイヤー側
+			  (setf color +black/red+))     ;;敵側
 		      (setf aa (jobdesc-aa (unit-jobdesc unit))))
-		    (let ((can-move (aref (game-move_area game) y x)))
+		    (let ((can-move (aref (game-move_area game) y x))) ;;移動可能範囲
 		      (setf color (get-cell-color cell can-move))
 		      (setf aa (celldesc-aa (aref *celldescs* cell)))))
-		(when (aref (game-atk_area game) y x)
+		(when (aref (game-atk_area game) y x) ;;攻撃可能範囲
 		  (setf color +black/atk-b+))
-		(when (and (= (game-cursor_x game) x)
+		(when (and (= (game-cursor_x game) x) ;;カーソル位置
 			   (= (game-cursor_y game) y))
 		  (setf color +black/white+)
 		  (show-cell-data cell cell-win)
+		  ;;カーソル位置にうにっといたらデータ表示
 		  (when (and unit (unit-alive? unit))
 		    (show-unit-data unit unit-win)))
 
 		(with-colors (map-win color)
 		  (charms:write-string-at-point
-		  map-win aa (+ (* x 2) 1) (1+ y)))))))
+		   map-win aa
+		   (1+ (* x 2)) (1+ y) ;;枠とか全角文字とか考慮したあれ
+		   ))))))
 
 ;;敵移動中描画
 ;;地形とユニット描画
@@ -752,10 +755,11 @@ CL-USER 10 > (minimum '((a 1) (b -1) (c -2)) #'< #'second)
         (setf (unit-act? u) nil)))
 
 ;;unitに一番近いキャラ
-(defun near-chara (unit units)
+(defun near-chara (unit units r-min)
   (first
     (sort (remove-if (lambda (u) (or (not (unit-alive? u))
-                                     (= (unit-team u) (unit-team unit))))
+                                     (= (unit-team u) (unit-team unit))
+				     (> r-min (unit-dist unit u)))) ;;最小射程以下の敵消す
                      (coerce units 'list))
      #'<
      :key (lambda (u)
@@ -850,58 +854,62 @@ CL-USER 10 > (minimum '((a 1) (b -1) (c -2)) #'< #'second)
         (show-enemy-move units cells map-win 0.15)))))
 
 ;;a-starで移動ルート探索
-(defun astar-move (unit target cells units r-max movecost map-win)
+(defun astar-move (unit target cells units r-min r-max movecost map-win)
   (let* ((start (list (unit-x unit) (unit-y unit)))
          (goal  (list (unit-x target) (unit-y target)))
          (block-cell (get-block-cell unit units)) ;;敵ユニットの場所
          (paths (all-astar start goal unit units cells movecost block-cell)))
-    (loop for path in paths do
-      (setf (unit-x unit) (car path)
-            (unit-y unit) (cadr path))
-      ;;敵が一歩動いたら画面描画
-      (show-enemy-move units cells map-win 0.15)
-      (when (and (>= r-max (unit-dist unit target))
-                 (null (get-unit (unit-x unit) (unit-y unit) units)))
-        (return)))))
+    (loop for path in paths
+       do
+	 (let ((unit-oru? (get-unit (car path) (cadr path) units)))
+	   (setf (unit-x unit) (car path)
+		 (unit-y unit) (cadr path))
+	   (setf target (near-chara unit units r-min)) ;;一歩動いたらターゲット再設定
+	   ;;敵が一歩動いたら画面描画
+	   (show-enemy-move units cells map-win 0.15)
+	   ;;次の移動先のマスにユニットがいないand攻撃範囲に敵がいたら移動やめて攻撃にうつる
+	   (when (and (>= r-max (unit-dist unit target) r-min)
+		      (null unit-oru?))
+	     (return))
+	   ))))
 
 ;;敵の移動
-(defun enemy-move (unit target r-max units cells map-win)
+(defun enemy-move (unit target r-min r-max units cells map-win)
   ;;(init-move-area move-area)
   ;;(get-move-area (unit-x unit) (unit-y unit) unit units cells move-area)
   (let ((movecost (jobdesc-movecost (unit-jobdesc unit))))
-    (if (= (unit-rank unit) +boss+)
+    (if (= (unit-rank unit) +boss+) ;;ボスは城に向かう
         (astar-to-castle unit cells units movecost map-win)
-        (astar-move unit target cells units r-max movecost map-win))))
-        ;;(tekito-move 0 0 unit units target r-max move-area movecost move cells map-win))))
+        (astar-move unit target cells units r-min r-max movecost map-win))))
 
 ;;敵の攻撃
 (defun enemy-attack (atk-unit def-unit cells atk-win)
   (attack! atk-unit def-unit cells +atk_normal+ atk-win)
-  (charms:clear-window atk-win)
-  (charms:refresh-window atk-win))
+  (erase-window atk-win))
 
 ;;敵の行動 攻撃範囲に相手ユニットがいたら攻撃する
 (defun enemy-act (units cells atk-win map-win)
-  (loop while (null *game-over?*)
-        for u across units
-        when (and (>= (unit-team u) +enemy+)
-                  (unit-alive? u))
-        do
-        (gamen-clear map-win)
-        (show-enemy-move units cells map-win 0.01)
-        (let* ((weapon (unit-weapondesc u))
-               (target (near-chara u units))
-               (r-min (weapondesc-rangemin weapon))
-               (r-max (weapondesc-rangemax weapon))
-               (dist (unit-dist u target)))
-          (if (>= r-max dist r-min) ;;攻撃範囲に相手がいる
-              (enemy-attack u target cells atk-win)
-              (progn ;;移動後に攻撃範囲に相手がいたら攻撃
-                (enemy-move u target r-max units cells map-win)
-                (setf target (near-chara u units))
-                (when (>= r-max (unit-dist u target) r-min)
-                  (enemy-attack u target cells atk-win)))))
-        (gamen-refresh map-win)))
+  (let ((wait-time 0.05)) 
+    (loop while (null *game-over?*)
+       for u across units
+       when (and (>= (unit-team u) +enemy+)
+		 (unit-alive? u))
+       do
+	 (gamen-clear map-win)
+	 (show-enemy-move units cells map-win wait-time)
+	 (let* ((weapon (unit-weapondesc u))
+		(r-min (weapondesc-rangemin weapon))
+		(r-max (weapondesc-rangemax weapon))
+		(target (near-chara u units r-min))
+		(dist (unit-dist u target)))
+	   (if (>= r-max dist r-min) ;;攻撃範囲に相手がいる
+	       (enemy-attack u target cells atk-win)
+	       (progn ;;移動後に攻撃範囲に相手がいたら攻撃
+		 (enemy-move u target r-min r-max units cells map-win)
+		 (setf target (near-chara u units r-min))
+		 (when (>= r-max (unit-dist u target) r-min)
+		   (enemy-attack u target cells atk-win)))))
+	 (gamen-refresh map-win))))
 
 ;;回復地形効果
 (defun cell-heal (units cells)
@@ -919,9 +927,12 @@ CL-USER 10 > (minimum '((a 1) (b -1) (c -2)) #'< #'second)
         (game-cursor_y game)              0
         (game-cells game)               nil
         (game-units game)               nil
-        (game-select_unit game)         nil
+        (game-select_unit game)         nil	
         (game-turn game)           +p_turn+
-        (game-s_phase game)   +select_unit+)
+        (game-s_phase game)   +select_unit+
+	*game-clear*                    nil
+	*game-over?*                    nil
+	*game-opening*                  nil)
   (init-move-area (game-move_area game))
   (init-move-area (game-atk_area game)))
 
@@ -941,11 +952,9 @@ CL-USER 10 > (minimum '((a 1) (b -1) (c -2)) #'< #'second)
       ((eql c #\w)
        (save-suru game))
       ((eql c #\l)
-       (clear-windows map-win)
-       (refresh-windows map-win)
+       (erase-window map-win)
        (get-loadstr game))
       ((eql c #\s)
-       (setf *game-opening* nil)
        (init-game game)))))
 
 ;;ゲームクリアメッセージ
@@ -960,7 +969,6 @@ CL-USER 10 > (minimum '((a 1) (b -1) (c -2)) #'< #'second)
       ((eql c #\q)
        (setf *game-play* nil))
       ((eql c #\r)
-       (setf *game-clear* nil)
        (init-game game)))))
 
 ;; game-over
@@ -983,7 +991,6 @@ CL-USER 10 > (minimum '((a 1) (b -1) (c -2)) #'< #'second)
         ((eql c #\q)
          (setf *game-play* nil))
         ((eql c #\r)
-         (setf *game-over?* nil)
          (init-game game))))))
 
 ;;画面のタイトル表示
@@ -994,7 +1001,7 @@ CL-USER 10 > (minimum '((a 1) (b -1) (c -2)) #'< #'second)
   (charms:write-string-at-point unit-win "ユニットデータ" 10 0)
   (charms:write-string-at-point mes-win  "メッセージ" 6 0))
 
-;;マップに配置するキャラ表示
+;;マップに配置するキャラ表示 
 (defun show-set-units (game c-win cursor mes-win)
   (clear-windows c-win mes-win)
    (loop for u across (game-player_units game)
@@ -1009,7 +1016,7 @@ CL-USER 10 > (minimum '((a 1) (b -1) (c -2)) #'< #'second)
 	      1 y))))
    (charms:write-string-at-point
     mes-win
-    "配置するユニットを選んでください"
+    (format nil "配置するユニットを選ん~% でください")
     1 1)
    (draw-windows-box c-win mes-win)
    (charms:write-string-at-point c-win "出撃可能ユニット" 2 0)
@@ -1145,8 +1152,7 @@ CL-USER 10 > (minimum '((a 1) (b -1) (c -2)) #'< #'second)
      (setf (game-turn game) +e_turn+) ;;ターンチェンジ
      (cell-heal (game-units game) (game-cells game))) ;;地形による回復
     ((= (game-turn game) +e_turn+)
-     (gamen-clear cell-win unit-win mes-win)
-     (gamen-refresh cell-win unit-win mes-win)
+     (erase-window cell-win unit-win mes-win)
      (enemy-act (game-units game) (game-cells game) atk-win map-win) ;;全敵の行動
      (setf (game-turn game) +p_turn+) ;;敵がすべて行動したのでターンチェンジ
      (cell-heal (game-units game) (game-cells game)))))
@@ -1160,18 +1166,20 @@ CL-USER 10 > (minimum '((a 1) (b -1) (c -2)) #'< #'second)
 	  (setf *game-clear* t)
 	  (setf *stage-clear* t)))))
 
-;;メッセージウィンドウ
+;;メッセージウィンドウ 幅 半角24 (枠で2つかう)
 (defun show-mes-win (game mes-win)
   (cond
     ((= (game-s_phase game) +select_unit+)
      (charms:write-string-at-point
-       mes-win "移動したいユニットを選んでください" 1 1))
+      mes-win
+      (format nil "移動したいユニットを選~% んでください") 1 1))
     ((= (game-s_phase game) +select_move+)
      (charms:write-string-at-point
        mes-win "移動先を選んでください" 1 1))
     ((= (game-s_phase game) +select_attack+)
      (charms:write-string-at-point
-      mes-win "攻撃したい相手を選んでください" 1 1))))
+      mes-win
+      (format nil "攻撃したい相手を選んで~%ください") 1 1))))
 
 ;;全ユニット回復
 (defun heal-all-units (game)
@@ -1238,6 +1246,7 @@ CL-USER 10 > (minimum '((a 1) (b -1) (c -2)) #'< #'second)
       (charms/ll:keypad (charms::window-pointer map-win) 1)
      (loop named hello-world
 	while *game-play*
+	with test-win = (charms:make-window 52 3 0 (+ 2 *map-h* 15))
 	with unit-win = (charms:make-window 34 15 0 (+ 2 *map-h*)) ;;ユニットデータウィンドウ
 	with atk-win = (charms:make-window 36 8 0 (+ 2 *map-h*))   ;;攻撃メッセージウィンドウ
 	with cell-win = (charms:make-window 18 5 35 (+ 2 *map-h*)) ;;地形データウィンドウ
