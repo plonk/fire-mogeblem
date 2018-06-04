@@ -265,8 +265,8 @@
 
 (defparameter *units-data* ;;A~Gも敵データにしてよい
   ;;       name job hp maxhp str skill w_lv agi luck def give-exp move weapon rank
-  `((A . ("プロピアキャスター" ,+job_pirate+   24 24 7  3  7  8  0  6 24  6 ,+enemy+ ,+w_steal_ax+ ,+boss+)) ;;ステージ１ボス
-    (B . ("もび太"     ,+job_bandit+   27 27 8  3  7  8  0  6 26  6 ,+enemy+ ,+w_steal_ax+ ,+boss+)) ;;ステージ２ボス
+  `((A . ("プロピアキャスター" ,+job_pirate+   24 24 7  3  7  8  0  6 34 6 ,+enemy+ ,+w_steal_ax+ ,+boss+)) ;;ステージ１ボス
+    (B . ("もび太"     ,+job_bandit+   27 27 8  3  7  8  0  6 36  6 ,+enemy+ ,+w_steal_ax+ ,+boss+)) ;;ステージ２ボス
     (C . ("ハツネツA"  ,+job_shogun+   28 28 9  1 3  4  0  14 50  5 ,+enemy+ ,+w_silver_spear+ ,+boss+)) ;;ステージ３ボス
     (D . ("リスパー"   ,+job_paradin+  27 27 8  7 10 11  0  9 44 10 ,+enemy+ ,+w_rapier+ ,+boss+)) ;;ステージ4ボス
     (E . ("モーゲ皇帝" ,+job_yusha+    30 30 8 14 10 14  0 10 46  7 ,+enemy+ ,+w_silver_sword+ ,+boss+)) ;;ステージ5ボス
@@ -286,7 +286,7 @@
 (defparameter *defo-player-units*
   (make-array 7 :initial-contents
         (list (make-unit :name "もげぞう" :job +job_lord+ :hp 18 :maxhp 18
-                         :str 50 :skill 3 :w_lv 5 :agi 7 :luck 7 :def 7
+                         :str 5 :skill 3 :w_lv 5 :agi 7 :luck 7 :def 7
 			 :lvup '(90 50 40 30 50 70 20 0)
                          :move 7 :weapon +w_rapier+ :team +ally+ :rank +leader+)
               (make-unit :name "ヨテガン" :job +job_paradin+ :hp 20 :maxhp 20
