@@ -1,15 +1,6 @@
 ;;TODO ステージ終了ごとにセーブしたい ロードするときの文字列入力を作る
+;;bordeaux-threads
 
-(ql:quickload '(cl-charms bordeaux-threads alexandria defenum cffi))
-
-(setf sb-ext:*invoke-debugger-hook*
-      (lambda (condition hook)
-        (declare (ignore condition hook))
-        ;; デバッガが呼ばれたら、単にプログラムを終了する
-        ;; recklessly-p に t を指定して、後始末(標準出力ストリームのフラッシュ等)が行われないようにする
-        ;;(sb-ext:quit :recklessly-p t)))
-  ;;デバッガの文字ずれないようにする
-       (charms/ll:endwin)))
 
 (load "define.lisp")
 (load "map-data.lisp")
@@ -159,10 +150,12 @@ CL-USER 10 > (minimum '((a 1) (b -1) (c -2)) #'< #'second)
 
 ;;ステージ終了時に生き残ってる味方ユニット
 (defun get-alive-ally-units (game)
-  (remove-if #'(lambda (u)
+  (sort (remove-if #'(lambda (u)
 	         (or (null (unit-alive? u))
 		     (= +enemy+ (unit-team u))))
-	     (game-units game)))
+		   (game-units game))
+	#'< :key #'(lambda (u) (unit-job u))))
+  
 
 ;;色変更できるかチェック
 (defun start-color ()
@@ -1246,7 +1239,7 @@ CL-USER 10 > (minimum '((a 1) (b -1) (c -2)) #'< #'second)
       (charms/ll:keypad (charms::window-pointer map-win) 1)
      (loop named hello-world
 	while *game-play*
-	with test-win = (charms:make-window 52 3 0 (+ 2 *map-h* 15))
+	;;with test-win = (charms:make-window 52 3 0 (+ 2 *map-h* 15))
 	with unit-win = (charms:make-window 34 15 0 (+ 2 *map-h*)) ;;ユニットデータウィンドウ
 	with atk-win = (charms:make-window 36 8 0 (+ 2 *map-h*))   ;;攻撃メッセージウィンドウ
 	with cell-win = (charms:make-window 18 5 35 (+ 2 *map-h*)) ;;地形データウィンドウ
