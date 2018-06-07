@@ -211,14 +211,14 @@
 ;;地形データ配列
 (defparameter *celldescs*
   (make-array +cell_max+ :initial-contents
-    (list (make-celldesc :name "海"   :aa "〜" :def 30)
-          (make-celldesc :name "草原" :aa "．" :def 5)
-          (make-celldesc :name "林"   :aa "林" :def 15)
-          (make-celldesc :name "山"   :aa "山" :def 25)
-          (make-celldesc :name "高山" :aa "山" :def 0)
-          (make-celldesc :name "町"   :aa "町" :def 0)
-          (make-celldesc :name "砦"   :aa "砦" :def 20 :heal t)
-          (make-celldesc :name "城"   :aa "城" :def 30 :heal t))))
+    (list (make-celldesc :name "海"   :aa "􄀤􄀥" :def 30)
+          (make-celldesc :name "草原" :aa "􄀢􄀣" :def 5)
+          (make-celldesc :name "林"   :aa "􄀨􄀩" :def 15)
+          (make-celldesc :name "山"   :aa "􄀬􄀭" :def 25)
+          (make-celldesc :name "高山" :aa "􄀪􄀫" :def 0)
+          (make-celldesc :name "町"   :aa "􄀠􄀡" :def 0)
+          (make-celldesc :name "砦"   :aa "􄀦􄀧" :def 20 :heal t)
+          (make-celldesc :name "城"   :aa "􄀮􄀯" :def 30 :heal t))))
 
 (defenum:defenum team
     (+ally+ +enemy+ +type_max+))
@@ -233,33 +233,33 @@
 (defparameter *jobdescs*
   ;;movecost= (海 草原 林 山 高山 町 砦 城)
   (make-array +job_max+ :initial-contents
-        (list (make-jobdesc :name "ロード" :aa "君" :give_exp 0
+        (list (make-jobdesc :name "ロード" :aa "􄁀􄁁" :give_exp 0
                             :movecost #(-1 1 2 4 -1 1 2 2))
-              (make-jobdesc :name "パラディン" :aa "聖" :give_exp 44
+              (make-jobdesc :name "パラディン" :aa "􄁆􄁇" :give_exp 44
 			    :movecost #(-1 1 3 6 -1 1 2 2))
-              (make-jobdesc :name "Sナイト" :aa "騎" :give_exp 30
+              (make-jobdesc :name "Sナイト" :aa "􄁄􄁅" :give_exp 30
 			    :movecost #(-1 1 3 -1 -1 1 2 2))
-              (make-jobdesc :name "Aナイト" :aa "重" :give_exp 32
+              (make-jobdesc :name "Aナイト" :aa "􄁂􄁃" :give_exp 32
 			    :movecost #(-1 1 3 -1 -1 1 2 2))
-              (make-jobdesc :name "アーチャー" :aa "射" :give_exp 28
+              (make-jobdesc :name "アーチャー" :aa "􄁊􄁋" :give_exp 28
 			    :movecost #(-1 1 3 -1 -1 1 2 2))
-              (make-jobdesc :name "Pナイト" :aa "天" :give_exp 36
+              (make-jobdesc :name "Pナイト" :aa "􄁈􄁉" :give_exp 36
 			    :movecost #(1 1 1 1 1 1 1 1))
-              (make-jobdesc :name "海賊" :aa "海" :give_exp 24
+              (make-jobdesc :name "海賊" :aa "􄀰􄀱" :give_exp 24
 			    :movecost #(2 1 2 4 -1 1 2 2))
-              (make-jobdesc :name "ハンター" :aa "狩" :give_exp 26
+              (make-jobdesc :name "ハンター" :aa "􄀲􄀳" :give_exp 26
 			    :movecost #(-1 1 2 3 -1 1 2 2))
-              (make-jobdesc :name "盗賊" :aa "盗" :give_exp 100 ;;40
+              (make-jobdesc :name "盗賊" :aa "􄀴􄀵" :give_exp 100 ;;40
 			    :movecost #(-1 1 2 4 -1 1 2 2))
-	      (make-jobdesc :name "山賊" :aa "さ" :give_exp 24
+	      (make-jobdesc :name "山賊" :aa "􄁌􄁍" :give_exp 24
 			    :movecost #(-1 1 2 1 2 1 2 2))
-	      (make-jobdesc :name "Dナイト" :aa "竜" :give_exp 44
+	      (make-jobdesc :name "Dナイト" :aa "􄀺􄀻" :give_exp 44
 			    :movecost #(1 1 1 1 1 1 1 1))
-	      (make-jobdesc :name "将軍" :aa "将" :give_exp 50
+	      (make-jobdesc :name "将軍" :aa "􄀾􄀿" :give_exp 50
 			    :movecost #(-1 1 2 4 -1 1 2 2))
-	      (make-jobdesc :name "傭兵" :aa "傭" :give_exp 50
+	      (make-jobdesc :name "傭兵" :aa "􄀼􄀽" :give_exp 50
 			    :movecost #(-1 1 2 3 -1 1 1 2))
-	      (make-jobdesc :name "勇者" :aa "勇" :give_exp 50
+	      (make-jobdesc :name "勇者" :aa "􄀸􄀹" :give_exp 50
 			    :movecost #(-1 1 2 3 -1 1 1 2))
 	      )))
 

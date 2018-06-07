@@ -1,0 +1,3 @@
+#!/bin/sh
+cat font.txt
+sbcl --disable-debugger --load load.lisp --eval '(exit)'
